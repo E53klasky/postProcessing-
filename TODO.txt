@@ -1,8 +1,8 @@
 TODO -----------------------------------------------------
 
 
-  1. Convert Qian's cpp compression code to python3 also make it read all the vars and find it also look for it in my repo and email. Also write out data as varCompressed
-  2. Make a div and curl code in mpi parallel write out to file as div and curl 
+  1. take subtract from https://github.com/ornladios/SummerStudents2024/blob/main/subtract.py add an eb to it then sub 
+  2. make the compulation parallel and get curl 
   3. Make my streamlines in parallel: add mpi threads for each step to make a different image 
   4. Get PY4Xincompact3D to work with what I am doing
 
