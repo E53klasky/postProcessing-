@@ -1,0 +1,6 @@
+Others
+MPI
+ADIOS2
+
+python dependinces 
+pip install numpy
