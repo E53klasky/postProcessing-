@@ -4,3 +4,4 @@ ADIOS2
 
 python dependinces 
 pip install numpy
+pip install matplotlib
