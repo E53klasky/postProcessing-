@@ -4,6 +4,7 @@ from adios2 import Adios, Stream
 import os
 import sys
 
+
 def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -14,7 +15,7 @@ def main():
     
     if(len(sys.argv) < 3):
         if rank == 0:
-            print("Usage: python div_curl.py <PATH/TO/ADIOS2/FILE.bp5> <PATH/TO/ADIOS2/xml> <output_file>")
+            print("Usage: python div_curl.py <PATH/TO/ADIOS2/FILE.bp5> <PATH/TO/ADIOS2/xml> [output_file]")
         return
     
     input_file = sys.argv[1]
@@ -59,6 +60,7 @@ def main():
                         if rank == 0:
                             print(f"Read data shapes: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
                         
+                        original_shape = ux.shape
                         if len(ux.shape) == 4 and ux.shape[0] == 1:
                             ux = ux[0, :, :, :]
                             uy = uy[0, :, :, :]
@@ -68,34 +70,73 @@ def main():
                             uy = uy[0, :, :]
                             uz = uz[0, :, :]
                         
+                        if rank == 0:
+                            print(f"After squeezing: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
+                        
+
                         if len(ux.shape) == 3:  
                             div = (np.gradient(ux, axis=2) +  
-                                   np.gradient(uy, axis=1) + 
+                                   np.gradient(uy, axis=1) +  
                                    np.gradient(uz, axis=0))   
+                            
+                            curl_x = np.gradient(uz, axis=1) - np.gradient(uy, axis=0)  
+                            curl_y = np.gradient(ux, axis=0) - np.gradient(uz, axis=2)  
+                            curl_z = np.gradient(uy, axis=2) - np.gradient(ux, axis=1)  
+                            
                         elif len(ux.shape) == 2:  
                             div = (np.gradient(ux, axis=1) +  
                                    np.gradient(uy, axis=0))   
+                            
+  
+                            curl_z = np.gradient(uy, axis=1) - np.gradient(ux, axis=0) 
+                            
+
+                            curl_x = np.gradient(uz, axis=0) 
+                            curl_y = -np.gradient(uz, axis=1)     
+                            
                         else:
                             if rank == 0:
                                 print(f"Unsupported data dimensionality: {ux.shape}")
                             continue
                         
-
-                        # curl_x = np.gradient(uz, axis=1) - np.gradient(uy, axis=2)
-                        # curl_y = np.gradient(ux, axis=2) - np.gradient(uz, axis=0)
-                        # curl_z = np.gradient(uy, axis=0) - np.gradient(ux, axis=1)
-                        
                         if rank == 0:
                             print(f"Calculated divergence shape: {div.shape}")
-
+                            if len(ux.shape) == 2:
+                                print(f"Calculated curl (2D) shape: {curl_z.shape}")
+                            else:
+                                print(f"Calculated curl components shape: {curl_x.shape}")
+                        
                         writer.write("div", div, 
                                    shape=div.shape, 
                                    start=[0] * len(div.shape), 
                                    count=div.shape)
-
-                        # writer.write("curl_x", curl_x, shape=curl_x.shape, start=[0]*len(curl_x.shape), count=curl_x.shape)
-                        # writer.write("curl_y", curl_y, shape=curl_y.shape, start=[0]*len(curl_y.shape), count=curl_y.shape)
-                        # writer.write("curl_z", curl_z, shape=curl_z.shape, start=[0]*len(curl_z.shape), count=curl_z.shape)
+                        
+                        if len(ux.shape) == 2: 
+                            writer.write("curl_z", curl_z, 
+                                       shape=curl_z.shape, 
+                                       start=[0] * len(curl_z.shape), 
+                                       count=curl_z.shape)
+                            writer.write("curl_x", curl_x, 
+                                       shape=curl_x.shape, 
+                                       start=[0] * len(curl_x.shape), 
+                                       count=curl_x.shape)
+                            writer.write("curl_y", curl_y, 
+                                       shape=curl_y.shape, 
+                                       start=[0] * len(curl_y.shape), 
+                                       count=curl_y.shape)
+                        else: 
+                            writer.write("curl_x", curl_x, 
+                                       shape=curl_x.shape, 
+                                       start=[0] * len(curl_x.shape), 
+                                       count=curl_x.shape)
+                            writer.write("curl_y", curl_y, 
+                                       shape=curl_y.shape, 
+                                       start=[0] * len(curl_y.shape), 
+                                       count=curl_y.shape)
+                            writer.write("curl_z", curl_z, 
+                                       shape=curl_z.shape, 
+                                       start=[0] * len(curl_z.shape), 
+                                       count=curl_z.shape)
                         
                         writer.end_step()
                         step_count += 1
@@ -117,7 +158,8 @@ def main():
         if rank == 0:
             print(f"Error opening files: {e}")
         return
-
+    if rank == 0:
+        print(f"Output written to {output_file}")
 
 if __name__ == "__main__":
     main()
