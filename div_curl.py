@@ -43,6 +43,22 @@ def main():
     Rio = adios_obj.declare_io("readerIO")
     Wio = adios_obj.declare_io("WriteIO")
     
+    """ Divid the data for each var across each MPI process 
+        1 D domain decomposition 
+        /---------------/
+        |   Process 0  |
+        | reads n+1 pt | 
+        |   Process 1  |
+        |   Process 2  |
+        |   Process 3  |
+        | reads n+1 pt | 
+        |   Process N  |
+         /---------------/
+    how does the div work and how to make it work with MPI
+    write out n for all 
+    
+    """
+    
     try:
         with Stream(Rio, input_file, 'r') as reader:
             with Stream(Wio, output_file, "w") as writer:
