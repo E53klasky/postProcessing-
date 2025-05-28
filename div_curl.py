@@ -10,5 +10,7 @@ def main():
     size = comm.Get_size()
     print(f"Rank {rank} of {size} started.")
     
+    
+    
 if __name__ == "__main__":
     main()
