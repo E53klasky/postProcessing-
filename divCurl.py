@@ -3,6 +3,31 @@ import numpy as np
 from adios2 import Adios, Stream
 import os
 import sys
+import argparse
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
+    
+    parser.add_argument('input_file', 
+                       type=str, 
+                       help='Path to the input ADIOS2 BP5 file')
+    
+    parser.add_argument('num_steps', 
+                       type=int, 
+                       help='Number of time steps to process')
+    
+    parser.add_argument('--xml', '-x',
+                       type=str,
+                       default=None,
+                       help='Path to ADIOS2 XML configuration file (optional)')
+    
+    parser.add_argument('--output', '-o',
+                       type=str,
+                       default='div_curl.bp',
+                       help='Output file name (default: div_curl.bp)')
+    
+    return parser.parse_args()
 
 
 def main():
@@ -13,36 +38,23 @@ def main():
     if rank == 0:
         print(f"Running with {size} MPI processes")
 
-    if(len(sys.argv) < 3):
-        if rank == 0:
-            print("Usage: python div_curl.py <PATH/TO/ADIOS2/FILE.bp5> <num steps> OPTIONAL -> : <PATH/TO/ADIOS2/xml> [output_file]")
-        return
-
-    input_file = sys.argv[1]
-    num_steps = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        adios2_xml = sys.argv[3]
-    else:
-        adios2_xml = "no xml file provided"
+    args = parse_arguments()
     
+    input_file = args.input_file
+    num_steps = args.num_steps
+    adios2_xml = args.xml if args.xml else "no xml file provided"
+    output_file = args.output
 
     if rank == 0:
         print(f"Input file: {input_file}")
         print(f"ADIOS2 XML file: {adios2_xml}")
         print(f"Number of steps to process: {num_steps}")
+        print(f"Output file: {output_file}")
 
     if not os.path.exists(input_file):
         if rank == 0:
             print(f"Error: File {input_file} does not exist.")
         return
-
-    if len(sys.argv) > 4:
-        output_file = sys.argv[4]
-    else:
-        output_file ="div_curl.bp"
-
-    if rank == 0:
-        print(f"Output file: {output_file}")
 
     adios_obj = Adios()
     Rio = adios_obj.declare_io("readerIO")
@@ -51,7 +63,6 @@ def main():
     try:
         with Stream(Rio, input_file, 'r') as reader:
             with Stream(Wio, output_file, "w") as writer:
-
 
                 for _ in reader:
                     step = reader.current_step()
@@ -66,7 +77,6 @@ def main():
                         if rank == 0:
                             print(f"Read data shapes: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
 
-                        original_shape = ux.shape
                         if len(ux.shape) == 4 and ux.shape[0] == 1:
                             ux = ux[0, :, :, :]
                             uy = uy[0, :, :, :]
@@ -78,7 +88,6 @@ def main():
 
                         if rank == 0:
                             print(f"After squeezing: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
-
 
                         if len(ux.shape) == 3:
                             div = (np.gradient(ux, axis=2,  edge_order=2) +
@@ -92,7 +101,6 @@ def main():
                         elif len(ux.shape) == 2:
                             div = (np.gradient(ux, axis=1,  edge_order=2) +
                                    np.gradient(uy, axis=0,  edge_order=2))
-
 
                             curl_z = np.gradient(uy, axis=1, edge_order=2) - np.gradient(ux, axis=0, edge_order=2)
                             curl_x = np.gradient(uz, axis=0,  edge_order=2)
@@ -115,7 +123,6 @@ def main():
                                    start=[0] * len(div.shape),
                                    count=div.shape)
 
-
                         writer.write("curl_x", curl_x,
                                        shape=curl_x.shape,
                                        start=[0] * len(curl_x.shape),
@@ -128,12 +135,12 @@ def main():
                                        shape=curl_z.shape,
                                        start=[0] * len(curl_z.shape),
                                        count=curl_z.shape)
-                        if step ==  num_steps - 1:
+                        
+                        if step == num_steps - 1:
                             writer.end_step()
                             break
 
                         writer.end_step()
-
 
                     except Exception as e:
                         if rank == 0:
@@ -152,8 +159,10 @@ def main():
         if rank == 0:
             print(f"Error opening files: {e}")
         return
+    
     if rank == 0:
         print(f"Output written to {output_file}")
+
 
 if __name__ == "__main__":
     main()

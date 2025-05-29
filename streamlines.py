@@ -2,25 +2,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+import argparse
 from adios2 import Adios, Stream
 from mpi4py import MPI 
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
-def find_bp5_directories(directory="."):
-    bp_dirs = []
-    for item in os.listdir(directory):
-        item_path = os.path.join(directory, item)
-        if os.path.isdir(item_path) and item.startswith("cavity2D") and item.endswith(".bp5"):
-            bp_dirs.append(item_path)
-    return bp_dirs
 
-def read_adios2_velocity(bp_dir):
+
+def read_adios2_velocity(bp_dir, max_steps=None):
     adios_obj = Adios()
     
     io = adios_obj.declare_io("reader")
     with Stream(io, bp_dir, 'r') as f:
+        step_count = 0
         for _ in f.steps():
+            if max_steps is not None and step_count >= max_steps:
+                print(f"Reached maximum steps limit ({max_steps}), stopping.")
+                break
+                
             step = f.current_step()
             print(f"Reading step {step}")
             
@@ -32,39 +32,39 @@ def read_adios2_velocity(bp_dir):
                 uy = uy[0, :, :]
                 
             yield step, ux, uy
+            step_count += 1
 
-def calculate_global_velocity_range(bp_dirs):
+def calculate_global_velocity_range(bp_file, max_steps=None):
     global_min = float('inf')
     global_max = float('-inf')
     
     print("Calculating global velocity magnitude range...")
     
-    for bp_dir in bp_dirs:
-        print(f"Scanning {os.path.basename(bp_dir)}...")
-        try:
-            for step, ux, uy in read_adios2_velocity(bp_dir):
-                magnitude = np.sqrt(ux**2 + uy**2)
-                current_min = np.min(magnitude)
-                current_max = np.max(magnitude)
-                
-                global_min = min(global_min, current_min)
-                global_max = max(global_max, current_max)
-                
-                print(f"  Step {step}: min={current_min:.6f}, max={current_max:.6f}")
-        except Exception as e:
-            print(f"Error scanning {bp_dir}: {str(e)}")
-            continue
+    print(f"Scanning {os.path.basename(bp_file)}...")
+    try:
+        for step, ux, uy in read_adios2_velocity(bp_file, max_steps):
+            magnitude = np.sqrt(ux**2 + uy**2)
+            current_min = np.min(magnitude)
+            current_max = np.max(magnitude)
+            
+            global_min = min(global_min, current_min)
+            global_max = max(global_max, current_max)
+            
+            print(f"  Step {step}: min={current_min:.6f}, max={current_max:.6f}")
+    except Exception as e:
+        print(f"Error scanning {bp_file}: {str(e)}")
+        sys.exit(1)
     
     print(f"Global velocity magnitude range: [{global_min:.6f}, {global_max:.6f}]")
     return global_min, global_max
 
-def plot_streamlines(bp_dir, vmin, vmax):
+def plot_streamlines(bp_dir, vmin, vmax, max_steps=None):
     print(f"Processing BP5 directory: {bp_dir}")
     
     base_filename = os.path.basename(bp_dir).split('.')[0]
     
     try:
-        for step, ux, uy in read_adios2_velocity(bp_dir):
+        for step, ux, uy in read_adios2_velocity(bp_dir, max_steps):
             ny, nx = ux.shape
             x, y = np.meshgrid(np.linspace(0, 1, nx), np.linspace(0, 1, ny))
             
@@ -83,7 +83,6 @@ def plot_streamlines(bp_dir, vmin, vmax):
             dir_parts = os.path.basename(bp_dir).split('.')
             resolution_info = '_'.join(dir_parts[1:4]) if len(dir_parts) >= 4 else 'unknown'
             
-
             output_filename = f"{base_filename}_{resolution_info}_streamlines_step{step:04d}.png"
             plt.savefig(output_filename, dpi=300, bbox_inches='tight')
             plt.close()
@@ -92,30 +91,46 @@ def plot_streamlines(bp_dir, vmin, vmax):
     except Exception as e:
         print(f"Error processing {bp_dir}: {str(e)}")
 
-def main():
-    bp_dirs = find_bp5_directories()
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
     
-    if not bp_dirs:
-        print("No BP5 directories starting with 'cavity2D' found in the current directory.")
+    parser.add_argument('path', 
+                       type=str, 
+                       help='Path to the BP5 file to process')
+    
+    parser.add_argument('max_steps', 
+                       type=int, 
+                       help='Maximum number of time steps to process')
+    
+    parser.add_argument('--workers', '-w',
+                       type=int,
+                       default=multiprocessing.cpu_count(),
+                       help=f'Number of worker processes (default: {multiprocessing.cpu_count()})')
+    
+    return parser.parse_args()
+
+def main():
+    args = parse_arguments()
+    
+    if not (os.path.isfile(args.path) or (os.path.isdir(args.path) and args.path.endswith('.bp5'))):
+        print(f"Error: Path '{args.path}' is not a valid BP5 file.")
         sys.exit(1)
     
-    print(f"Found {len(bp_dirs)} BP5 directories to process.")
+    bp_file = args.path
+    max_steps = args.max_steps
+    print(f"Processing BP5 file: {bp_file}")
+    print(f"Will process maximum of {max_steps} time steps.")
     
-    vmin, vmax = calculate_global_velocity_range(bp_dirs)
-    
+    vmin, vmax = calculate_global_velocity_range(bp_file, max_steps)
     
     vmin_plot = vmin   
     vmax_plot = vmax
     
     print(f"Using color scale range: [{vmin_plot:.6f}, {vmax_plot:.6f}]")
-
-    max_workers = multiprocessing.cpu_count()  
-    print(f"Using {max_workers} processes for plotting.")
     
-    for bp_dir in bp_dirs:
-        plot_streamlines(bp_dir, vmin_plot, vmax_plot)
+    plot_streamlines(bp_file, vmin_plot, vmax_plot, max_steps)
     
-    print(f"All streamline images saved with consistent color scale!")
+    print(f"Streamline images saved with consistent color scale!")
 
 if __name__ == "__main__":
     main()
