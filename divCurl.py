@@ -2,7 +2,6 @@ from mpi4py import MPI
 import numpy as np
 from adios2 import Adios, Stream
 import os
-import sys
 import argparse
 
 

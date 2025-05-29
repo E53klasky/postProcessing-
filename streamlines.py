@@ -112,9 +112,10 @@ def main():
     max_steps = args.max_steps
     xml_file = args.xml
 
-    if not os.path.exists(bp_file):
-        print(f"Error: File {bp_file} does not exist.")
-        sys.exit(1)
+    # NOT sure if this will work with the SST engine 
+    # if not os.path.exists(bp_file):
+    #     print(f"Error: File {bp_file} does not exist.")
+    #     sys.exit(1)
 
     print(f"Processing BP5 file: {bp_file}")
     print(f"Will process maximum of {max_steps} time steps.")
