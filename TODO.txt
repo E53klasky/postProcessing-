@@ -2,8 +2,8 @@ TODO -----------------------------------------------------
 
 
   1. take subtract from https://github.com/ornladios/SummerStudents2024/blob/main/subtract.py add an eb to it then sub 
-  2. make the compulation parallel 
-  3. Make my streamlines in parallel: add mpi threads for each step to make a different image 
+  2. divCurl make it in parallel  
+  3. streamlines make parallel
   4. Get PY4Xincompact3D to work with what I am doing
 
 
