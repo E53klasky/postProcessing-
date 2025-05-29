@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import os
 import sys
 from adios2 import Adios, Stream
+from mpi4py import MPI 
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 def find_bp5_directories(directory="."):
     bp_dirs = []
@@ -97,7 +100,7 @@ def main():
         sys.exit(1)
     
     print(f"Found {len(bp_dirs)} BP5 directories to process.")
-
+    
     vmin, vmax = calculate_global_velocity_range(bp_dirs)
     
     
@@ -106,6 +109,9 @@ def main():
     
     print(f"Using color scale range: [{vmin_plot:.6f}, {vmax_plot:.6f}]")
 
+    max_workers = multiprocessing.cpu_count()  
+    print(f"Using {max_workers} processes for plotting.")
+    
     for bp_dir in bp_dirs:
         plot_streamlines(bp_dir, vmin_plot, vmax_plot)
     
