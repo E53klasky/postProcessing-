@@ -8,19 +8,17 @@ from mpi4py import MPI
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
+def read_adios2_velocity(bp_dir, max_steps=None, xml_file=None):
+    adios_obj = Adios(xml_file) if xml_file else Adios()
+    io = adios_obj.declare_io("readerIO")
 
-
-def read_adios2_velocity(bp_dir, max_steps=None):
-    adios_obj = Adios()
-    
-    io = adios_obj.declare_io("reader")
     with Stream(io, bp_dir, 'r') as f:
         step_count = 0
         for _ in f.steps():
             if max_steps is not None and step_count >= max_steps:
                 print(f"Reached maximum steps limit ({max_steps}), stopping.")
                 break
-                
+            
             step = f.current_step()
             print(f"Reading step {step}")
             
@@ -34,15 +32,15 @@ def read_adios2_velocity(bp_dir, max_steps=None):
             yield step, ux, uy
             step_count += 1
 
-def calculate_global_velocity_range(bp_file, max_steps=None):
+def calculate_global_velocity_range(bp_file, max_steps=None, xml_file=None):
     global_min = float('inf')
     global_max = float('-inf')
     
     print("Calculating global velocity magnitude range...")
-    
     print(f"Scanning {os.path.basename(bp_file)}...")
+
     try:
-        for step, ux, uy in read_adios2_velocity(bp_file, max_steps):
+        for step, ux, uy in read_adios2_velocity(bp_file, max_steps, xml_file):
             magnitude = np.sqrt(ux**2 + uy**2)
             current_min = np.min(magnitude)
             current_max = np.max(magnitude)
@@ -58,13 +56,12 @@ def calculate_global_velocity_range(bp_file, max_steps=None):
     print(f"Global velocity magnitude range: [{global_min:.6f}, {global_max:.6f}]")
     return global_min, global_max
 
-def plot_streamlines(bp_dir, vmin, vmax, max_steps=None):
+def plot_streamlines(bp_dir, vmin, vmax, max_steps=None, xml_file=None):
     print(f"Processing BP5 directory: {bp_dir}")
-    
     base_filename = os.path.basename(bp_dir).split('.')[0]
     
     try:
-        for step, ux, uy in read_adios2_velocity(bp_dir, max_steps):
+        for step, ux, uy in read_adios2_velocity(bp_dir, max_steps, xml_file):
             ny, nx = ux.shape
             x, y = np.meshgrid(np.linspace(0, 1, nx), np.linspace(0, 1, ny))
             
@@ -72,7 +69,6 @@ def plot_streamlines(bp_dir, vmin, vmax, max_steps=None):
             magnitude = np.sqrt(ux**2 + uy**2)
             
             plt.streamplot(x, y, ux, uy, color=magnitude, cmap='jet', density=1.5)
-            
             plt.xlabel('X')
             plt.ylabel('Y')
             plt.title(f"{os.path.basename(bp_dir)} - Streamlines at Step {step}")
@@ -94,18 +90,14 @@ def plot_streamlines(bp_dir, vmin, vmax, max_steps=None):
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
     
-    parser.add_argument('path', 
-                       type=str, 
-                       help='Path to the BP5 file to process')
+    parser.add_argument('path', type=str, help='Path to the BP5 file to process')
+    parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
     
-    parser.add_argument('max_steps', 
-                       type=int, 
-                       help='Maximum number of time steps to process')
+    parser.add_argument('--workers', '-w', type=int, default=multiprocessing.cpu_count(),
+                        help=f'Number of worker processes (default: {multiprocessing.cpu_count()})')
     
-    parser.add_argument('--workers', '-w',
-                       type=int,
-                       default=multiprocessing.cpu_count(),
-                       help=f'Number of worker processes (default: {multiprocessing.cpu_count()})')
+    parser.add_argument('--xml', '-x', type=str, default=None,
+                        help='Path to ADIOS2 XML configuration file (optional)')
     
     return parser.parse_args()
 
@@ -115,22 +107,27 @@ def main():
     if not (os.path.isfile(args.path) or (os.path.isdir(args.path) and args.path.endswith('.bp5'))):
         print(f"Error: Path '{args.path}' is not a valid BP5 file.")
         sys.exit(1)
-    
+
     bp_file = args.path
     max_steps = args.max_steps
+    xml_file = args.xml
+
+    if not os.path.exists(bp_file):
+        print(f"Error: File {bp_file} does not exist.")
+        sys.exit(1)
+
     print(f"Processing BP5 file: {bp_file}")
     print(f"Will process maximum of {max_steps} time steps.")
     
-    vmin, vmax = calculate_global_velocity_range(bp_file, max_steps)
+    if xml_file:
+        print(f"Using XML configuration: {xml_file}")
     
-    vmin_plot = vmin   
-    vmax_plot = vmax
+    vmin, vmax = calculate_global_velocity_range(bp_file, max_steps, xml_file)
+    print(f"Using color scale range: [{vmin:.6f}, {vmax:.6f}]")
     
-    print(f"Using color scale range: [{vmin_plot:.6f}, {vmax_plot:.6f}]")
+    plot_streamlines(bp_file, vmin, vmax, max_steps, xml_file)
     
-    plot_streamlines(bp_file, vmin_plot, vmax_plot, max_steps)
-    
-    print(f"Streamline images saved with consistent color scale!")
+    print("Streamline images saved with consistent color scale!")
 
 if __name__ == "__main__":
     main()
