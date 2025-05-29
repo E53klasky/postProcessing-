@@ -1,7 +1,22 @@
-Others
-MPI
-ADIOS2
+Requirements
+System Dependencies
+MPI – Required for parallel execution (e.g., mpich or OpenMPI)
 
-python dependinces 
-pip install numpy
-pip install matplotlib
+ADIOS2 – For reading and writing .bp5 simulation files
+↳ Make sure it's compiled with Python bindings if using ADIOS2 in Python scripts
+
+Python Dependencies
+Install the required Python packages with:
+
+bash
+Copy
+Edit
+pip install numpy matplotlib
+If you're setting up a virtual environment (recommended):
+
+bash
+Copy
+Edit
+python3 -m venv venv
+source venv/bin/activate
+pip install numpy matplotlib

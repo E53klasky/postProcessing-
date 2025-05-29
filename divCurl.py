@@ -55,8 +55,10 @@ def main():
         if rank == 0:
             print(f"Error: File {input_file} does not exist.")
         return
-
-    adios_obj = Adios()
+    if  "no xml file provided" == adios2_xml:
+        adios_obj = Adios()
+    else:
+        adios_obj = Adios(adios2_xml)
     Rio = adios_obj.declare_io("readerIO")
     Wio = adios_obj.declare_io("WriteIO")
 
