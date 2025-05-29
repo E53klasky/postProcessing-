@@ -1,5 +1,5 @@
 from mpi4py import MPI
-import numpy as np 
+import numpy as np
 from adios2 import Adios, Stream
 import os
 import sys
@@ -12,170 +12,152 @@ def main():
 
     if rank == 0:
         print(f"Running with {size} MPI processes")
-    
-    if(len(sys.argv) < 3):
+
+    if len(sys.argv) < 3:
         if rank == 0:
             print("Usage: python div_curl.py <PATH/TO/ADIOS2/FILE.bp5> <PATH/TO/ADIOS2/xml> [output_file]")
         return
-    
+
     input_file = sys.argv[1]
     adios2_xml = sys.argv[2]
-    
+
     if rank == 0:
         print(f"Input file: {input_file}")
         print(f"ADIOS2 XML file: {adios2_xml}")
-    
+      
     if not os.path.exists(input_file):
         if rank == 0:
             print(f"Error: File {input_file} does not exist.")
         return
-    
+
     if len(sys.argv) > 3:
         output_file = sys.argv[3]
     else:
-        base_name = os.path.splitext(input_file)[0]
-        output_file = f"{base_name}_div_curl.bp5"
-    
+        output_file = "div_curl_mpi.bp"
+
     if rank == 0:
         print(f"Output file: {output_file}")
-        
-    adios_obj = Adios(adios2_xml)
-    Rio = adios_obj.declare_io("readerIO")
-    Wio = adios_obj.declare_io("WriteIO")
-    
-    """ Divid the data for each var across each MPI process 
-        1 D domain decomposition 
-        /---------------/
-        |   Process 0  |
-        | reads n+1 pt | 
-        |   Process 1  |
-        |   Process 2  |
-        |   Process 3  |
-        | reads n+1 pt | 
-        |   Process N  |
-         /---------------/
-    how does the div work and how to make it work with MPI
-    write out n for all 
-    
-    """
-    
+
     try:
-        with Stream(Rio, input_file, 'r') as reader:
-            with Stream(Wio, output_file, "w") as writer:
-                
-                step_count = 0
-                for step_data in reader:
-                    if rank == 0:
+        adios_obj = Adios(adios2_xml)
+        Rio = adios_obj.DeclareIO("readerIO")
+        Wio = adios_obj.DeclareIO("WriteIO")
+
+        if rank == 0:
+            with Stream(Rio, input_file, "r",comm) as reader:
+                with Stream(Wio, output_file, "w", comm) as writer:
+
+                    step_count = 0
+                    for _ in reader:
                         print(f"Processing step {step_count}")
-                    
-                    try:
-                        ux = step_data.read('ux')
-                        uy = step_data.read('uy')
-                        uz = step_data.read('uz')
-                        
-                        if rank == 0:
-                            print(f"Read data shapes: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
-                        
-                        original_shape = ux.shape
-                        if len(ux.shape) == 4 and ux.shape[0] == 1:
-                            ux = ux[0, :, :, :]
-                            uy = uy[0, :, :, :]
-                            uz = uz[0, :, :, :]
-                        elif len(ux.shape) == 3 and ux.shape[0] == 1:
-                            ux = ux[0, :, :]
-                            uy = uy[0, :, :]
-                            uz = uz[0, :, :]
-                        
-                        if rank == 0:
-                            print(f"After squeezing: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
-                        
 
-                        if len(ux.shape) == 3:  
-                            div = (np.gradient(ux, axis=2) +  
-                                   np.gradient(uy, axis=1) +  
-                                   np.gradient(uz, axis=0))   
-                            
-                            curl_x = np.gradient(uz, axis=1) - np.gradient(uy, axis=0)  
-                            curl_y = np.gradient(ux, axis=0) - np.gradient(uz, axis=2)  
-                            curl_z = np.gradient(uy, axis=2) - np.gradient(ux, axis=1)  
-                            
-                        elif len(ux.shape) == 2:  
-                            div = (np.gradient(ux, axis=1) +  
-                                   np.gradient(uy, axis=0))   
-                            
-  
-                            curl_z = np.gradient(uy, axis=1) - np.gradient(ux, axis=0) 
-                            
+                        try:
+                            ux_var = reader.inquire_variable('ux')
+                            uy_var = reader.inquire_variable('uy')
+                            uz_var = reader.inquire_variable('uz')
 
-                            curl_x = np.gradient(uz, axis=0) 
-                            curl_y = -np.gradient(uz, axis=1)     
-                            
-                        else:
-                            if rank == 0:
-                                print(f"Unsupported data dimensionality: {ux.shape}")
-                            continue
-                        
-                        if rank == 0:
+                            print(f"Read variable shapes: ux={ux_var.shape()}, uy={uy_var.shape()}, uz={uz_var.shape()}")
+
+                            # Read actual numpy arrays from variables
+                            ux = reader.read(ux_var)
+                            uy = reader.read(uy_var)
+                            uz = reader.read(uz_var)
+
+                            # Squeeze data if needed and determine dimensionality flag
+                            if len(ux_var.shape()) == 4 and ux_var.shape()[0] == 1:
+                                ux = ux[0, :, :, :]
+                                uy = uy[0, :, :, :]
+                                uz = uz[0, :, :, :]
+                                flag = False  # 3D data after squeezing
+                            elif len(ux_var.shape()) == 3 and ux_var.shape()[0] == 1:
+                                ux = ux[0, :, :]
+                                uy = uy[0, :, :]
+                                uz = uz[0, :, :]
+                                flag = True  # 2D data after squeezing
+                            elif len(ux_var.shape()) == 3:
+                                flag = False
+                            elif len(ux_var.shape()) == 2:
+                                flag = True
+                            else:
+                                print(f"Unsupported data dimensionality: {ux_var.shape()}")
+                                break
+
+                            print(f"After processing: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
+                            print(f"Flag (3D mode): {flag}")
+
+                            # Compute divergence and curl
+                            if len(ux.shape) == 3:  # 3D case
+                                print("Computing 3D divergence and curl...")
+                                div = (np.gradient(ux, axis=2, edge_order=2) +
+                                       np.gradient(uy, axis=1, edge_order=2) +
+                                       np.gradient(uz, axis=0, edge_order=2))
+
+                                curl_x = np.gradient(uz, axis=1, edge_order=2) - np.gradient(uy, axis=0, edge_order=2)
+                                curl_y = np.gradient(ux, axis=0, edge_order=2) - np.gradient(uz, axis=2, edge_order=2)
+                                curl_z = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+
+                            elif len(ux.shape) == 2:  # 2D case
+                                print("Computing 2D divergence and curl...")
+                                div = (np.gradient(ux, axis=1, edge_order=2) +
+                                       np.gradient(uy, axis=0, edge_order=2))
+
+                                curl_z = np.gradient(uy, axis=1, edge_order=2) - np.gradient(ux, axis=0, edge_order=2)
+                                curl_x = np.gradient(uz, axis=0, edge_order=2)
+                                curl_y = -np.gradient(uz, axis=1, edge_order=2)
+
+                            else:
+                                print(f"Unsupported data shape for computation: {ux.shape}")
+                                break
+
                             print(f"Calculated divergence shape: {div.shape}")
                             if len(ux.shape) == 2:
                                 print(f"Calculated curl (2D) shape: {curl_z.shape}")
                             else:
                                 print(f"Calculated curl components shape: {curl_x.shape}")
-                        
-                        writer.write("div", div, 
-                                   shape=div.shape, 
-                                   start=[0] * len(div.shape), 
-                                   count=div.shape)
-                        
-                        if len(ux.shape) == 2: 
-                            writer.write("curl_z", curl_z, 
-                                       shape=curl_z.shape, 
-                                       start=[0] * len(curl_z.shape), 
-                                       count=curl_z.shape)
-                            writer.write("curl_x", curl_x, 
-                                       shape=curl_x.shape, 
-                                       start=[0] * len(curl_x.shape), 
-                                       count=curl_x.shape)
-                            writer.write("curl_y", curl_y, 
-                                       shape=curl_y.shape, 
-                                       start=[0] * len(curl_y.shape), 
-                                       count=curl_y.shape)
-                        else: 
-                            writer.write("curl_x", curl_x, 
-                                       shape=curl_x.shape, 
-                                       start=[0] * len(curl_x.shape), 
-                                       count=curl_x.shape)
-                            writer.write("curl_y", curl_y, 
-                                       shape=curl_y.shape, 
-                                       start=[0] * len(curl_y.shape), 
-                                       count=curl_y.shape)
-                            writer.write("curl_z", curl_z, 
-                                       shape=curl_z.shape, 
-                                       start=[0] * len(curl_z.shape), 
-                                       count=curl_z.shape)
-                        
-                        writer.end_step()
-                        step_count += 1
-                        
-                    except Exception as e:
-                        if rank == 0:
+
+                            print("Starting to write data...")
+
+                            # Write data to output file
+                            if flag:  # 2D case
+                                writer.write("div", div, shape=div.shape, start=[0, 0], count=div.shape)
+                                writer.write("curl_x", curl_x, shape=curl_x.shape, start=[0, 0], count=curl_x.shape)
+                                writer.write("curl_y", curl_y, shape=curl_y.shape, start=[0, 0], count=curl_y.shape)
+                                writer.write("curl_z", curl_z, shape=curl_z.shape, start=[0, 0], count=curl_z.shape)
+                            else:  # 3D case
+                                writer.write("div", div, shape=div.shape, start=[0, 0, 0], count=div.shape)
+                                writer.write("curl_x", curl_x, shape=curl_x.shape, start=[0, 0, 0], count=curl_x.shape)
+                                writer.write("curl_y", curl_y, shape=curl_y.shape, start=[0, 0, 0], count=curl_y.shape)
+                                writer.write("curl_z", curl_z, shape=curl_z.shape, start=[0, 0, 0], count=curl_z.shape)
+
+                            writer.end_step()
+
+                            print(f"Finished writing data for step {step_count}")
+                            step_count += 1
+
+                        except Exception as e:
                             print(f"Error processing step {step_count}: {e}")
                             try:
-                                available_vars = step_data.available_variables()
+                                available_vars = reader.available_variables()
                                 print(f"Available variables: {list(available_vars.keys())}")
-                            except:
+                            except Exception:
                                 print("Could not retrieve available variables")
-                        break
-                
-                if rank == 0:
+                            break
+
                     print(f"Successfully processed {step_count} steps")
-                    
+
+        else:
+            # Other ranks just wait for rank 0 to finish
+            if rank == 1:
+                print(f"Rank {rank} waiting for rank 0 to complete...")
+
     except Exception as e:
         if rank == 0:
             print(f"Error opening files: {e}")
         return
+
     if rank == 0:
         print(f"Output written to {output_file}")
+
 
 if __name__ == "__main__":
     main()
