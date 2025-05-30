@@ -4,17 +4,12 @@ from adios2 import Adios, Stream, bindings
 import os
 import argparse
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
     
     parser.add_argument('input_file', 
                        type=str, 
                        help='Path to the input ADIOS2 BP5 file')
-    
-    parser.add_argument('num_steps', 
-                       type=int, 
-                       help='Number of time steps to process')
     
     parser.add_argument('--xml', '-x',
                        type=str,
@@ -40,14 +35,12 @@ def main():
     args = parse_arguments()
     
     input_file = args.input_file
-    num_steps = args.num_steps
     adios2_xml = args.xml if args.xml else "no xml file provided"
     output_file = args.output
 
     if rank == 0:
         print(f"Input file: {input_file}")
         print(f"ADIOS2 XML file: {adios2_xml}")
-        print(f"Number of steps to process: {num_steps}")
         print(f"Output file: {output_file}")
 
     if not os.path.exists(input_file):
@@ -139,9 +132,10 @@ def main():
                                        count=curl_z.shape)
                         
                         if status != bindings.StepStatus.OK:
+                            if rank == 0:
+                                print(f"End of steps reached or error reading step {step}")
                             writer.end_step()
                             break
-
 
                         writer.end_step()
 
