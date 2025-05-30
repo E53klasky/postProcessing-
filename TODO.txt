@@ -6,5 +6,6 @@ TODO -----------------------------------------------------
   3. streamlines make parallel and work in 3d only works for 2D
   4. Get PY4Xincompact3D to work with what I am doing
 
+  finish compression and add contour in 3d
 
   --------------------------------------------------------------

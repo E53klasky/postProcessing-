@@ -8,7 +8,7 @@ from mpi4py import MPI
 
 
 
-
+# eventaully add choose compression
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
     
@@ -28,8 +28,11 @@ def adios2_reader(bp_file, max_steps, xml_file):
     
     if xml_file == "no xml file provided":
         adios = Adios()
+        adios.Operator("mgard","mgard")
+        print("Using mgard as default for now ")
     else:
         adios = Adios(xml_file)
+        print("takeing error bound from xml_file")
     Rio = adios.declare_io("ReadIO")
     Wio = adios.declare_io("WriteIO")
     avalid_variables = Rio.available_variables()
