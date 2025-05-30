@@ -3,7 +3,7 @@ TODO -----------------------------------------------------
 
   1. take subtract from https://github.com/ornladios/SummerStudents2024/blob/main/subtract.py add an eb to it then sub 
   2. divCurl make it in parallel  
-  3. streamlines make parallel
+  3. streamlines make parallel and work in 3d only works for 2D
   4. Get PY4Xincompact3D to work with what I am doing
 
 
