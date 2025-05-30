@@ -111,7 +111,10 @@ def main():
     bp_file = args.path
     max_steps = args.max_steps
     xml_file = args.xml
-
+    
+    #comm = MPI.COMM_WORLD
+    #rank = comm.Get_rank()
+    #size = comm.Get_size()
     # NOT sure if this will work with the SST engine 
     # if not os.path.exists(bp_file):
     #     print(f"Error: File {bp_file} does not exist.")

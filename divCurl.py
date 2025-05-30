@@ -1,6 +1,6 @@
 from mpi4py import MPI
 import numpy as np
-from adios2 import Adios, Stream
+from adios2 import Adios, Stream, bindings
 import os
 import argparse
 
@@ -57,7 +57,7 @@ def main():
     if  "no xml file provided" == adios2_xml:
         adios_obj = Adios()
     else:
-        adios_obj = Adios(adios2_xml)
+        adios_obj = Adios(adios2_xml )
     Rio = adios_obj.declare_io("readerIO")
     Wio = adios_obj.declare_io("WriteIO")
 
@@ -66,6 +66,7 @@ def main():
             with Stream(Wio, output_file, "w") as writer:
 
                 for _ in reader:
+                    status = reader.begin_step()
                     step = reader.current_step()
                     if rank == 0:
                         print(f"Processing step {step}")
@@ -137,9 +138,10 @@ def main():
                                        start=[0] * len(curl_z.shape),
                                        count=curl_z.shape)
                         
-                        if step == num_steps - 1:
+                        if status != bindings.StepStatus.OK:
                             writer.end_step()
                             break
+
 
                         writer.end_step()
 
