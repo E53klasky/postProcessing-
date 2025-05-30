@@ -1,0 +1,5 @@
+look at the tgv python example in PYxcoampt 3d you will have to take thier codes to read in a bp file and write out the data with command line arguments
+
+
+
+~/Programs/Py4Incompact3D/py4incompact3d/tools qcriteria.py
