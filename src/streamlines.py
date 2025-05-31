@@ -6,7 +6,7 @@ import argparse
 from adios2 import Adios, Stream, bindings
 import mpi4py as MPI
 
-# fix this make it simpler then make it work
+# works in 2D make it simpiler and work for 3D
 def calculate_global_velocity_range(all_data, is_3d=False):
     """Calculate global velocity range for consistent coloring"""
     global_min = float('inf')
@@ -32,9 +32,7 @@ def calculate_global_velocity_range(all_data, is_3d=False):
     return global_min, global_max
 
 def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
-    """Plot 2D streamlines"""
     if len(ux.shape) == 3:
-        # If 3D data in 2D mode, use middle slice
         mid_slice = ux.shape[2] // 2
         ux_2d = ux[:, :, mid_slice]
         uy_2d = uy[:, :, mid_slice]
@@ -73,7 +71,7 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
         slice_idx = ux.shape[2] // 2
         print(f"Using middle slice: {slice_idx}")
     
-    # Map variable names to velocity components
+
     vel_dict = {
         'ux': ux, 'uy': uy, 'uz': uz,
         'vx': ux, 'vy': uy, 'vz': uz
@@ -104,21 +102,26 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
     
     return output_filename
 
-def main():
+
+def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
     parser.add_argument('path', type=str, help='Path to the BP5 file to process')
-    #parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
     parser.add_argument('--xml', '-x', type=str, default=None, help='ADIOS2 XML config file')
     parser.add_argument('--mode', '-m', type=str, choices=['2d', '3d'], default='2d', help='2D or 3D mode')
     parser.add_argument('--var1', type=str, default='ux', help='First velocity component (3D mode)')
     parser.add_argument('--var2', type=str, default='uy', help='Second velocity component (3D mode)')
     parser.add_argument('--slice', '-s', type=int, default=32, help='Slice index for 3D mode')
+    parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
+    return parser.parse_args()
+
+def main():
+
     
-    args = parser.parse_args()
+    args = parse_arguments()
     
-    if not (os.path.isfile(args.path) or (os.path.isdir(args.path) and args.path.endswith('.bp5'))):
-        print(f"Error: Path '{args.path}' is not a valid BP5 file.")
-        sys.exit(1)
+    # if not (os.path.isfile(args.path) or (os.path.isdir(args.path) and args.path.endswith('.bp5'))):
+    #     print(f"Error: Path '{args.path}' is not a valid BP5 file.")
+    #     sys.exit(1)
 
     bp_file = args.path
     #max_steps = args.max_steps
@@ -127,6 +130,7 @@ def main():
     var_1 = args.var1.lower()
     var_2 = args.var2.lower()
     slice_idx = args.slice
+    max_steps = args.max_steps
 
     print(f"Processing BP5 file: {bp_file}")
     print(f"Mode: {'3D' if is_3d else '2D'}")
@@ -187,7 +191,7 @@ def main():
                 all_data.append((step, ux, uy, uz))
                 step_count += 1
                 
-                if status != bindings.StepStatus.OK:
+                if step_count >= max_steps:
                     print(f"End of steps reached or error reading step {step}")
                     break
                 else:
