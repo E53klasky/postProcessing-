@@ -21,6 +21,7 @@ def parse_arguments():
                        default='div_curl.bp',
                        help='Output file name (default: div_curl.bp)')
     
+    parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
     return parser.parse_args()
 
 
@@ -37,6 +38,7 @@ def main():
     input_file = args.input_file
     adios2_xml = args.xml if args.xml else "no xml file provided"
     output_file = args.output
+    max_steps = args.max_steps
 
     if rank == 0:
         print(f"Input file: {input_file}")
@@ -131,7 +133,7 @@ def main():
                                        start=[0] * len(curl_z.shape),
                                        count=curl_z.shape)
                         
-                        if status != bindings.StepStatus.OK:
+                        if step >= max_steps-1:
                             if rank == 0:
                                 print(f"End of steps reached or error reading step {step}")
                             writer.end_step()
