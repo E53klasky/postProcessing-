@@ -35,13 +35,14 @@ def parse_arguments():
     
 
 
-
-
 def main():
     print("hello world")
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
+    if rank == 0:
+        print(f"Running with {size} MPI processes")
+    
     
     args = parse_arguments()
     
