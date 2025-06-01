@@ -6,7 +6,7 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d
 from adios2 import Adios, Stream
 from mpi4py import MPI
-
+import os
 
 
 def parse_arguments():
@@ -99,14 +99,18 @@ def main():
             if mode == '2d':
                 plt.figure()
                 for var, values in data.items():
+                    output_dir = "../RESULTS"
+                    os.makedirs(output_dir, exist_ok=True)
                     plt.contourf(np.squeeze(values), cmap="inferno", levels=50)
                     plt.title(var + f" at step {step}")
                     plt.colorbar()
-                    plt.savefig(f"{var}_step_{step}.png")
+                    plt.savefig(os.path.join(output_dir, f"{var}_step_{step}.png"))
                     plt.close()
                     
             elif mode == '3d':
                 for var, values in data.items():
+                    output_dir = "../RESULTS"
+                    os.makedirs(output_dir, exist_ok=True)
                     dims = values.shape
                     axes = [0, 1, 2]
                     
@@ -138,7 +142,7 @@ def main():
 
                     ax.set_title(f"{var} slice at dim {mode} index {z_index}")
                     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
-                    plt.savefig(f"{var}_3d_slice_{mode}_idx{z_index}.png")
+                    plt.savefig(os.path.join(output_dir, f"{var}_3d_slice_{mode}_idx{z_index}.png"))
                     plt.close()
 
             
@@ -146,7 +150,7 @@ def main():
             if s.current_step() >= max_steps - 1:
                 print(f"Reached max_steps = {max_steps}")
                 break
-    
+    print("Images saved to ../RESULTS")
 
 if __name__ == "__main__":
     main()
