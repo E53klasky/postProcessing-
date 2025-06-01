@@ -146,13 +146,19 @@ def main():
     #     sys.exit(1)
 
     bp_file = args.path
-    #max_steps = args.max_steps
     xml_file = args.xml
     is_3d = (args.mode == '3d')
+    if is_3d == '3d':
+        print("This code does not work in 3D mode yet, comming soon ...")
+        sys.exit(1)
     var_1 = args.var1.lower()
     var_2 = args.var2.lower()
     slice_idx = args.slice
     max_steps = args.max_steps
+    
+    if max_steps < 0:
+        print("Error: max_steps must be a non-negative integer.")
+        sys.exit(1)
 
     print(f"Processing BP5 file: {bp_file}")
     print(f"Mode: {'3D' if is_3d else '2D'}")

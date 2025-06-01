@@ -81,6 +81,9 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
 def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    size = comm.Get_size()
+    if rank == 0:
+        print(f"Running with {size} MPI processes")
     
     args = parse_arguments()
     

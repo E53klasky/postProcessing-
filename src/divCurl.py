@@ -3,6 +3,7 @@ import numpy as np
 from adios2 import Adios, Stream, bindings
 import os
 import argparse
+import sys
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
@@ -50,10 +51,11 @@ def main():
         print(f"ADIOS2 XML file: {adios2_xml}")
         print(f"Output file: {output_file}")
 
-    if not os.path.exists(input_file):
+    if max_steps < 0:
         if rank == 0:
-            print(f"Error: File {input_file} does not exist.")
-        return
+            print("Error: max_steps must be a non-negative integer.")
+        sys.exit(1)
+    
     if  "no xml file provided" == adios2_xml:
         adios_obj = Adios(comm)
     else:
