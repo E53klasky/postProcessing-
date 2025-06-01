@@ -9,19 +9,24 @@ def parse_arguments():
     
     parser.add_argument('input_file', 
                        type=str, 
-                       help='Path to the input ADIOS2 BP5 file')
+                       help='Path to the input ADIOS2 BP5 file (REQUIRED)')
     
-    parser.add_argument('--xml', '-x',
+    parser.add_argument('--xml', 
+                        '-x',
                        type=str,
                        default=None,
                        help='Path to ADIOS2 XML configuration file (optional)')
     
-    parser.add_argument('--output', '-o',
+    parser.add_argument('--output', 
+                        '-o',
                        type=str,
                        default='div_curl.bp',
-                       help='Output file name (default: div_curl.bp)')
+                       help='Output file name default: div_curl.bp (optional))')
     
-    parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
+    parser.add_argument('max_steps', 
+                        type=int, 
+                        help='Maximum number of time steps to process (REQUIRED)')
+   
     return parser.parse_args()
 
 
@@ -50,9 +55,9 @@ def main():
             print(f"Error: File {input_file} does not exist.")
         return
     if  "no xml file provided" == adios2_xml:
-        adios_obj = Adios()
+        adios_obj = Adios(comm)
     else:
-        adios_obj = Adios(adios2_xml )
+        adios_obj = Adios(adios2_xml, comm)
     Rio = adios_obj.declare_io("readerIO")
     Wio = adios_obj.declare_io("WriteIO")
 

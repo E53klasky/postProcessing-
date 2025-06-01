@@ -105,13 +105,35 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
-    parser.add_argument('path', type=str, help='Path to the BP5 file to process')
-    parser.add_argument('--xml', '-x', type=str, default=None, help='ADIOS2 XML config file')
-    parser.add_argument('--mode', '-m', type=str, choices=['2d', '3d'], default='2d', help='2D or 3D mode')
-    parser.add_argument('--var1', type=str, default='ux', help='First velocity component (3D mode)')
-    parser.add_argument('--var2', type=str, default='uy', help='Second velocity component (3D mode)')
-    parser.add_argument('--slice', '-s', type=int, default=32, help='Slice index for 3D mode')
-    parser.add_argument('max_steps', type=int, help='Maximum number of time steps to process')
+    parser.add_argument('path', 
+                        type=str, 
+                        help='Path to the BP5 file to process (REQUIRED)')
+    parser.add_argument('--xml', 
+                        '-x', type=str, 
+                        default=None, 
+                        help='ADIOS2 XML config file default: None (optional)')
+    parser.add_argument('--mode',
+                        '-m', 
+                        type=str, 
+                        choices=['2d', '3d'], 
+                        default='2d', 
+                        help='2D or 3D mode default: 2d (optional)') 
+    parser.add_argument('--var1', 
+                        type=str, 
+                        default='ux', 
+                        help='First velocity component (3D mode) (REQUIRED)')
+    parser.add_argument('--var2', 
+                        type=str, 
+                        default='uy', 
+                        help='Second velocity component (3D mode) (REQUIRED)')
+    parser.add_argument('--slice', 
+                        '-s', 
+                        type=int, 
+                        default=16, 
+                        help='Slice index (3D mode) default: 16 (optional)')
+    parser.add_argument('max_steps', 
+                        type=int, 
+                        help='Maximum number of time steps to process (REQUIRED)')
     return parser.parse_args()
 
 def main():
