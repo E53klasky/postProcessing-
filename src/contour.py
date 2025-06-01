@@ -1,42 +1,56 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import sys
 import argparse
+from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d
-from adios2 import Adios, Stream, bindings
-import mpi4py as MPI
+from adios2 import Adios, Stream
+from mpi4py import MPI
+
+
 
 def parse_arguments():
-    
     parser = argparse.ArgumentParser(description='Making contour plots')
-    
+
     parser.add_argument('input_file', 
-                       type=str, 
-                       help='Path to the input ADIOS2 BP5 file (REQUIRED)')
-    parser.add_argument('--xml', '-x',
-                       type=str,
-                       default=None,
-                       help='Path to ADIOS2 XML configuration file (optional)')
-    
-    parser.add_argument('vars', 
-                        '-v', 
                         type=str,
+                        help='Path to the input ADIOS2 BP5 file (REQUIRED)')
+
+    parser.add_argument('--xml', 
+                        '-x', 
+                        type=str, 
+                        default=None,
+                        help='Path to ADIOS2 XML configuration file (optional)')
+
+    parser.add_argument('--vars', 
+                        '-v', 
+                        type=str, 
+                        required=True,
                         help='Variables to plot, separated by commas (REQUIRED)')
-    
-    parser.add_argument('--mode',
+
+    parser.add_argument('--mode', 
                         '-m', 
                         type=str, 
                         choices=['2d', '3d'], 
-                        default='2d', 
-                        help='2D or 3D mode default: 2d (optional)') 
+                        default='2d',
+                        help='2D or 3D mode, default: 2d (optional)')
+
+    parser.add_argument('--max_steps', 
+                        '-n', 
+                        type=int, 
+                        help='Maximum number of timesteps to process (REQUIRED)')
     
+    parser.add_argument('--slice', 
+                        '-s', 
+                        type=int, 
+                        default=16,
+                        help='Slice index for 3D mode default: 16 (optional)')
+ 
+
     return parser.parse_args()
-    
 
 
 def main():
-    print("hello world")
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -50,6 +64,7 @@ def main():
     input_file = args.input_file
     adios2_xml = args.xml
     vars = args.vars.split(',')
+    slice = args.slice 
     
     mode = args.mode
     if rank == 0:
@@ -71,7 +86,6 @@ def main():
     
     with Stream(Rio, input_file, "r") as s:
         for steps in s:
-            #status = s.begin_step()
             step = s.current_step()
             print(f"Processing step {s.current_step()}")
             
@@ -85,20 +99,48 @@ def main():
             if mode == '2d':
                 plt.figure()
                 for var, values in data.items():
-                    plt.contourf(values)
+                    plt.contourf(np.squeeze(values), cmap="inferno", levels=50)
                     plt.title(var + f" at step {step}")
                     plt.colorbar()
                     plt.savefig(f"{var}_step_{step}.png")
+                    plt.close()
                     
             elif mode == '3d':
-                sys.exit("3D plotting is not implemented yet.")
-                # fig = plt.figure()
-                # ax = fig.add_subplot(111, projection='3d')
-                # for var, values in data.items():
-                #     X, Y = np.meshgrid(np.arange(values.shape[0]), np.arange(values.shape[1]))
-                #     ax.plot_surface(X, Y, values, cmap='viridis')
-                #     ax.set_title(var + f" at step {step}")
-                #plt.savefig(f"{var}_step_{step}.png")
+                for var, values in data.items():
+                    dims = values.shape
+                    axes = [0, 1, 2]
+                    
+                    x_dim, y_dim, z_dim = axes
+
+                    x = np.arange(dims[x_dim])
+                    y = np.arange(dims[y_dim])
+                    X, Y = np.meshgrid(x, y)
+                    
+                    z_index = slice
+                    if z_dim == 0:
+                        values_2d = values[z_index, :, :]
+                    elif z_dim == 1:
+                        values_2d = values[:, z_index, :]
+                    else:  
+                        values_2d = values[:, :, z_index]
+
+
+                    if values_2d.shape != X.shape:
+                        values_2d = values_2d.T
+
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111, projection='3d')
+
+                    surf = ax.plot_surface(X, Y, values_2d, cmap='inferno', linewidth=0, antialiased=False)
+
+                    levels = np.linspace(np.min(values_2d), np.max(values_2d), 10)
+                    ax.contour(X, Y, values_2d, levels=levels, cmap='inferno', linewidths=2)
+
+                    ax.set_title(f"{var} slice at dim {mode} index {z_index}")
+                    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+                    plt.savefig(f"{var}_3d_slice_{mode}_idx{z_index}.png")
+                    plt.close()
+
             
             
             if s.current_step() >= max_steps - 1:
