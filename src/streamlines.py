@@ -156,7 +156,7 @@ def main():
     slice_idx = args.slice
     max_steps = args.max_steps
     
-    if max_steps < 0:
+    if max_steps <= 0:
         print("Error: max_steps must be a non-negative integer.")
         sys.exit(1)
 

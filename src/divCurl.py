@@ -51,7 +51,7 @@ def main():
         print(f"ADIOS2 XML file: {adios2_xml}")
         print(f"Output file: {output_file}")
 
-    if max_steps < 0:
+    if max_steps <= 0:
         if rank == 0:
             print("Error: max_steps must be a non-negative integer.")
         sys.exit(1)
