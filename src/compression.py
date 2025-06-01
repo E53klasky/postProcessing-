@@ -93,8 +93,9 @@ def main():
     max_steps = args.max_steps
     output_file = args.output
 
-    if max_steps < 0:
-        print("Error: max_steps must be a non-negative integer.")
+    if max_steps <= 0:
+        if rank == 0:
+            print("Error: max_steps must be a non-negative integer.")
         sys.exit(1)
         
     if rank == 0:
