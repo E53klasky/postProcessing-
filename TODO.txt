@@ -1,10 +1,10 @@
 TODO -----------------------------------------------------
-
-  1. Make parallel and allow any operator and take error bound and operator through command line
-  2. divCurl make it in parallel  
-  3. streamlines make parallel and work in 3d only works for 2D
-  4. Get PY4Xincompact3D to work with what I am doing
-
-  finish compression and add contour in 3d
-
+  
+  1. Get Q-criterion code working
+  2. Fix streamlines to work in 3d
+  3. Make parallel all codes work in parallel
+  4. Clean up codes and make them better
+    4.1 make commpression code work by taking in an operator  
+    4.2 make 3d contour better
+    4.3 show an example on how to run the codes with the -h 
   --------------------------------------------------------------
