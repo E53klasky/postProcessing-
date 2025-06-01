@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import argparse
-from matplotlib import cm
-from mpl_toolkits.mplot3d import axes3d
 from adios2 import Adios, Stream
 from mpi4py import MPI
 import os

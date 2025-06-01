@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import argparse
-from adios2 import Adios, Stream, bindings
+from adios2 import Adios, Stream
 import mpi4py as MPI
 
-# works in 2D make it simpiler and work for 3D
+
 def calculate_global_velocity_range(all_data, is_3d=False):
     """Calculate global velocity range for consistent coloring"""
     global_min = float('inf')
@@ -43,19 +43,22 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     
     ny, nx = ux_2d.shape
     x, y = np.meshgrid(np.linspace(0, 1, nx), np.linspace(0, 1, ny))
-    
+    output_dir = "../RESULTS"
+    os.makedirs(output_dir, exist_ok=True)
+
     plt.figure(figsize=(10, 8))
     magnitude = np.sqrt(ux_2d**2 + uy_2d**2)
     plt.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='autumn_r', density=1.5)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title(f"{base_filename} - 2D Streamlines - Step {step}")
-    
+
     cb = plt.colorbar(label="Velocity magnitude")
     cb.mappable.set_clim(vmin, vmax)
-    
+
     output_filename = f"{base_filename}_2d_streamlines_step{step:04d}.png"
-    plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+    output_path = os.path.join(output_dir, output_filename)
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     
     return output_filename
@@ -77,15 +80,14 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
         'vx': ux, 'vy': uy, 'vz': uz
     }
     
-    # Extract 2D slice
     u = vel_dict[var_1][:, :, slice_idx]
     v = vel_dict[var_2][:, :, slice_idx]
     
-    # Create meshgrid
     ny, nx = u.shape
     x, y = np.meshgrid(np.linspace(0, 1, nx), np.linspace(0, 1, ny))
-    
-    # Plot
+    output_dir = "../RESULTS"
+    os.makedirs(output_dir, exist_ok=True)
+
     plt.figure(figsize=(10, 8))
     magnitude = np.sqrt(u**2 + v**2)
     plt.streamplot(x, y, u, v, color=magnitude, cmap='autumn_r', density=1.5)
@@ -97,7 +99,8 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
     cb.mappable.set_clim(vmin, vmax)
     
     output_filename = f"{base_filename}_3d_{var_1}{var_2}_slice{slice_idx}_step{step:04d}.png"
-    plt.savefig(output_filename, dpi=300, bbox_inches='tight')
+    full_path = os.path.join(output_dir, output_filename)
+    plt.savefig(full_path, dpi=300, bbox_inches='tight')
     plt.close()
     
     return output_filename
@@ -165,7 +168,6 @@ def main():
     if is_3d:
         print(f"Variables: {var_1} vs {var_2}, slice: {slice_idx}")
     
-    # ADIOS2 setup - directly in main like divCurl.py
     if xml_file:
         adios_obj = Adios(xml_file)
     else:
@@ -174,35 +176,26 @@ def main():
     io = adios_obj.declare_io("readerIO")
     base_filename = os.path.basename(bp_file).split('.')[0]
     
-    # First pass: collect all data and calculate global range
     all_data = []
     
     print("First pass: Reading all data...")
     with Stream(io, bp_file, 'r') as reader:
         step_count = 0
         for _ in reader:
-            # if max_steps is not None and step_count >= max_steps:
-            #     print(f"Reached maximum steps limit ({max_steps}), stopping.")
-            #     break
-            
+
             status = reader.begin_step()
             step = reader.current_step()
             print(f"Reading step {step}")
             
- 
-            
             try:
-                # Read velocity components
                 ux = reader.read('ux')
                 uy = reader.read('uy')
                 
-                # Try to read uz for 3D data
                 try:
                     uz = reader.read('uz')
                 except:
                     uz = None
                 
-                # Handle singleton dimensions
                 if len(ux.shape) == 4 and ux.shape[0] == 1:
                     ux = ux[0, :, :, :]
                     uy = uy[0, :, :, :]
@@ -237,10 +230,8 @@ def main():
         print("No data was read successfully!")
         sys.exit(1)
     
-    # Calculate global range for consistent coloring
     vmin, vmax = calculate_global_velocity_range(all_data, is_3d)
     
-    # Second pass: Generate plots
     print("Second pass: Generating plots...")
     for step, ux, uy, uz in all_data:
         print(f"Processing step {step}")
@@ -260,6 +251,7 @@ def main():
             continue
     
     print("All streamline plots completed!")
+    print("Please check the ../RESULTS")
 
 if __name__ == "__main__":
     main()
