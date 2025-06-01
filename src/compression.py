@@ -13,7 +13,7 @@ def parse_arguments():
     parser.add_argument("--errorBound", "-eb", 
                         type=float, 
                         default=0, 
-                        help='Error bound for compression (default: 0). No compression if 0. If using XML, it will take settings from there.')
+                        help='Error bound for compression (default: 0). No compression if 0. If using XML, it will take settings from there (optional)')
     
     parser.add_argument('max_steps', 
                         type=int, 
@@ -22,12 +22,12 @@ def parse_arguments():
     parser.add_argument('--xml', '-x', 
                         type=str, 
                         default=None,
-                        help='Path to ADIOS2 XML configuration file (optional)')
+                        help='Path to ADIOS2 XML configuration file (optional) ')
     
     parser.add_argument('--output', '-o',
                         type=str,
                         default='compressed.bp',
-                        help='Output file name (default: compressed.bp)')
+                        help='Output file name default: compressed.bp (optional)')
     
     return parser.parse_args()
 
@@ -37,6 +37,8 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
         adios = Adios()
         op = adios.define_operator("CompressMGARD", "mgard", {"tolerance": str(error_bound)})
         print("Using mgard with error bound =", error_bound)
+        print("This code does not work with out an XML right now comming soon ...")
+        sys.exit(1)
     else:
         adios = Adios(xml_file)
         op = None  
