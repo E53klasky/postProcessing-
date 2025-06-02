@@ -48,7 +48,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
 
     plt.figure(figsize=(10, 8))
     magnitude = np.sqrt(ux_2d**2 + uy_2d**2)
-    plt.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='autumn_r', density=1.5)
+    plt.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5)
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title(f"{base_filename} - 2D Streamlines - Step {step}")
@@ -90,7 +90,7 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
 
     plt.figure(figsize=(10, 8))
     magnitude = np.sqrt(u**2 + v**2)
-    plt.streamplot(x, y, u, v, color=magnitude, cmap='autumn_r', density=1.5)
+    plt.streamplot(x, y, u, v, color=magnitude, cmap='jet', density=1.5)
     plt.xlabel(var_1.upper())
     plt.ylabel(var_2.upper())
     plt.title(f"{base_filename} - 3D Streamlines ({var_1} vs {var_2}) - Step {step}, Slice {slice_idx}")
