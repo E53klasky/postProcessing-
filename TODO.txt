@@ -1,6 +1,6 @@
 TODO -----------------------------------------------------
   
-  1. Get Q-criterion code working already in the code sometimes
+  1. Add a RMSE code
   2. Make parallel all codes work in parallel
   3. Clean up codes and make them better
     3.1 make commpression code work by taking in an operator  
