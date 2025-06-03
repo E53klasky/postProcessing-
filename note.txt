@@ -5,7 +5,7 @@ look at the tgv python example in PYxcoampt 3d you will have to take thier codes
 ~/Programs/Py4Incompact3D/py4incompact3d/tools qcriteria.py
 
 change to rmse
-I think it is like this: 
+I think it is like this: skip_factor =  skip is 2.0 in both dir yes!!!!!!!!!!!!!!!!!
 def error(ground_truth, lower_res):
     file_paths = {
         1025: "output/1025_0.75t/Soln_0000.0000.h5",
