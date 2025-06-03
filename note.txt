@@ -4,10 +4,40 @@ look at the tgv python example in PYxcoampt 3d you will have to take thier codes
 
 ~/Programs/Py4Incompact3D/py4incompact3d/tools qcriteria.py
 
+change to rmse
+I think it is like this: 
+def error(ground_truth, lower_res):
+    file_paths = {
+        1025: "output/1025_0.75t/Soln_0000.0000.h5",
+        513: "output/513_0.75t/Soln_0000.0000.h5",
+        257: "output/257_0.75t/Soln_0000.0000.h5",
+        129: "output/129_0.75t/Soln_0000.0000.h5",
+        65: "output/65_0.75t/Soln_0000.0000.h5"
+    }
+
+    if ground_truth and lower_res in file_paths:
+        GT = hdf5_reader(file_paths[ground_truth], "Vz")
+        E = hdf5_reader(file_paths[lower_res], "Vz")
+    else:
+        return f"No resolutions of this type: {ground_truth} or {lower_res}"
+    skip_factor = round((groud_truth-1)/(lower_res-1))
+    diff = 0
+    count = 0 
+    
+    for i in range(0, E.shape[0]):
+        for j in range(0, E.shape[1]):
+            gt_value = GT[i * skip_factor, j * skip_factor]
+            e_value = E[i, j]
+            diff += np.abs(gt_value - e_value)
+            count += 1
+
+    mae = diff/count
+    print(f"The MAE for the ground truth {ground_truth} and lower resolution: {lower_res} is: {mae}")
 
 
 
 
+q_criterion is in code 
 
 import numpy as np
  
