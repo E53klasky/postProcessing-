@@ -64,7 +64,7 @@ Generate streamline visualizations from velocity field data.
 
 **Status**:
 
-- ✅ Works for 2D and 4D data
+- ✅ Works for 2D and 3D data
 - ⚠️ Parallel processing implementation is in development
 
 ### contour.py
