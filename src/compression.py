@@ -3,7 +3,7 @@ import argparse
 from adios2 import Adios, Stream
 from mpi4py import MPI
 
-# does not work for more than one step????????
+# Does not work without an XML file yet — to be fixed soon
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
@@ -24,12 +24,12 @@ def parse_arguments():
     parser.add_argument('--xml', '-x', 
                         type=str, 
                         default=None,
-                        help='Path to ADIOS2 XML configuration file (optional) ')
+                        help='Path to ADIOS2 XML configuration file (optional)')
     
     parser.add_argument('--output', '-o',
                         type=str,
                         default='compressed.bp',
-                        help='Output file name default: compressed.bp (optional)')
+                        help='Output file name (default: compressed.bp)')
     
     return parser.parse_args()
 
@@ -42,12 +42,12 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
     if xml_file == "no xml file provided":
         adios = Adios(comm)  
         op = adios.define_operator("CompressMGARD", "mgard", {"tolerance": str(error_bound)})
-        print("Using mgard with error bound =", error_bound)
-        print("This code does not work with out an XML right now comming soon ...")
+        print("Using MGARD with error bound =", error_bound)
+        print("This code does not work without an XML file right now — coming soon ...")
         sys.exit(1)
     else:
         adios = Adios(xml_file, comm)  
-        op = None  
+        op = None
         print("Using compression settings from XML")
 
     Rio = adios.declare_io("ReadIOCompressed")
@@ -56,19 +56,25 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
     print(f"Opening input file: {bp_file}")
     
     with Stream(Rio, bp_file, "r") as s, Stream(Wio, output_file, "w") as w:
+        variables_defined = False
+
         for step in s:
             status = s.begin_step()
-            print(f"Processing step {s.current_step()}")
-            
-            if s.current_step() == 0:
+            if status:
+                print(f"Processing step {s.current_step()}")
+                w.begin_step()
 
                 for name, info in s.available_variables().items():
                     var_in = Rio.inquire_variable(name)
-
                     shape = var_in.shape()
+
                     if not shape:
                         print(f"No shape info for variable {name}")
                         sys.exit(1)
+
+                    if len(shape) < 3:
+                        print(f"Skipping variable {name} — expected at least 3 dimensions, got {len(shape)}")
+                        continue
 
                     total_slices = shape[2]
                     base = total_slices // size
@@ -79,20 +85,21 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
                     start = [0, 0, local_start_2] + [0] * (len(shape) - 3)
                     count = list(shape)
                     count[2] = local_count_2
-                    var_in.set_selection((start, count))                    
-                    
+                    var_in.set_selection((start, count))
+
                     data = s.read(var_in)
 
-                    var_out = Wio.define_variable(
-                        name, data, shape, start, count)
-   
-                    w.begin_step()
-                    w.write(var_out, data)
-                    w.end_step()
-                    
-            if s.current_step() >= max_steps - 1:
-                print(f"Reached max_steps = {max_steps}")
-                break
+                    if not variables_defined:
+                        Wio.define_variable(name, data, shape, start, count)
+
+                    w.write(name, data)
+
+                variables_defined = True
+                w.end_step()
+
+                if s.current_step() >= max_steps - 1:
+                    print(f"Reached max_steps = {max_steps}")
+                    break
 
 
 def main():
@@ -112,7 +119,7 @@ def main():
 
     if max_steps <= 0:
         if rank == 0:
-            print("Error: max_steps must be a non-negative integer.")
+            print("Error: max_steps must be a positive integer.")
         sys.exit(1)
         
     if rank == 0:
