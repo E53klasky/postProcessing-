@@ -1,9 +1,9 @@
 TODO -----------------------------------------------------
   
-  1. MAKE RMSE code better command line args 
-  2. Make parallel all codes work in parallel
-  3. Clean up codes and make them better
-    3.1 make commpression code work by taking in an operator  and make it work better compressing differently acorss each time steps
-    3.2 make 3d contour better
-    3.3 show an example on how to run the codes with the -h 
+  
+  1. Make parallel all codes work in parallel
+  2. Clean up codes and make them better
+    2.1 make commpression code work by taking in an operator  and make it work better compressing differently acorss each time steps
+    2.2 make 3d contour better
+    2.3 show an example on how to run the codes with the -h 
   --------------------------------------------------------------
