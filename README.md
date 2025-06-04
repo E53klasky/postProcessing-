@@ -1,6 +1,6 @@
 # postProcessing
 
-This repository contains post-processing tools for CFD simulation data from xcompact3d. The tools process ADIOS2 BP5 files for divergence/curl calculations, streamline visualization, contour plotting, data compression, and RMSE analysis.
+This repository contains post-processing tools for CFD simulation data from xcompact3d. The tools process ADIOS2 BP files for divergence/curl calculations, streamline visualization, contour plotting, data compression, and RMSE analysis.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ You'll need to install the following system-level dependencies:
    - [MPICH Installation Guide](https://www.mpich.org/downloads/)
    - [OpenMPI Installation Guide](https://www.open-mpi.org/software/ompi/)
 
-2. **ADIOS2** - For reading and writing .bp5 simulation files
+2. **ADIOS2** - For reading and writing .bp simulation files
 
    - [ADIOS2 Installation Guide](https://adios2.readthedocs.io/en/latest/setting_up/setting_up.html)
    - **Important**: Make sure ADIOS2 is compiled with Python bindings and MPI support enabled
@@ -76,15 +76,17 @@ Generate contour plots for specified variables from simulation data.
 - ✅ Works for both 2D and 3D modes
 - ✅ Supports multiple variables
 - ⚠️ Parallel processing implementation is in development
+- ⚠️ Probly can make it better
 
 ### compression.py
 
-Compress ADIOS2 BP5 files using MGARD compression.
+Compress ADIOS2 BP files using MGARD compression.
 
 **Status**:
 
 - ✅ Works with XML configuration files
 - ⚠️ Standalone operation (without XML) is in development
+- ⚠️ Onlhy takes in MGARD
 
 ### RMSE.py
 
@@ -101,21 +103,21 @@ Calculate Root Mean Square Error between two datasets (e.g., high-res vs low-res
 
 ```bash
 # Basic usage
-mpirun -np 4 python3 divCurl.py input_file.bp5 50
+mpirun -np 4 python3 divCurl.py input_file.bp 50
 
 # With custom output file
-mpirun -np 4 python3 divCurl.py input_file.bp5 50 --output results.bp
+mpirun -np 4 python3 divCurl.py input_file.bp 50 --output results.bp
 
 # With XML configuration file
-mpirun -np 4 python3 divCurl.py input_file.bp5 50 --xml config.xml
+mpirun -np 4 python3 divCurl.py input_file.bp 50 --xml config.xml
 
 # Complete example with all options
-mpirun -np 4 python3 divCurl.py input_file.bp5 50 --xml config.xml --output my_results.bp
+mpirun -np 4 python3 divCurl.py input_file.bp 50 --xml config.xml --output my_results.bp
 ```
 
 **Arguments:**
 
-- `input_file` (required): Path to input ADIOS2 BP5 file
+- `input_file` (required): Path to input ADIOS2 BP file
 - `max_steps` (required): Maximum number of time steps to process
 - `--xml, -x` (optional): Path to ADIOS2 XML configuration file
 - `--output, -o` (optional): Output file name (default: `div_curl.bp`)
@@ -124,17 +126,17 @@ mpirun -np 4 python3 divCurl.py input_file.bp5 50 --xml config.xml --output my_r
 
 ```bash
 # Basic 2D usage
-python3 streamlines.py input_file.bp5 20
+python3 streamlines.py input_file.bp 20
 
 # With XML configuration
-python3 streamlines.py input_file.bp5 20 --xml config.xml
+python3 streamlines.py input_file.bp 20 --xml config.xml
 
-python3 streamlines.py input_file.bp5 20 --mode 3d --var1 ux --var2 uy --slice 16
+python3 streamlines.py input_file.bp 20 --mode 3d --var1 ux --var2 uy --slice 16
 ```
 
 **Arguments:**
 
-- `path` (required): Path to BP5 file to process
+- `path` (required): Path to BP file to process
 - `max_steps` (required): Maximum number of time steps to process
 - `--xml, -x` (optional): ADIOS2 XML config file
 - `--mode, -m` (optional): Processing mode - `2d` (default) or `3d` (experimental)
@@ -146,18 +148,18 @@ python3 streamlines.py input_file.bp5 20 --mode 3d --var1 ux --var2 uy --slice 1
 
 ```bash
 # 2D contour plots for multiple variables
-python3 contour.py input_file.bp5 --vars ux,uy,pp --max_steps 10 --mode 2d
+python3 contour.py input_file.bp --vars ux,uy,pp --max_steps 10 --mode 2d
 
 # 3D contour plots with specific slice
-python3 contour.py input_file.bp5 --vars ux,uy --max_steps 10 --mode 3d --slice 20
+python3 contour.py input_file.bp --vars ux,uy --max_steps 10 --mode 3d --slice 20
 
 # With XML configuration
-python3 contour.py input_file.bp5 --vars ux,uy,pp --max_steps 10 --xml config.xml
+python3 contour.py input_file.bp --vars ux,uy,pp --max_steps 10 --xml config.xml
 ```
 
 **Arguments:**
 
-- `input_file` (required): Path to input ADIOS2 BP5 file
+- `input_file` (required): Path to input ADIOS2 BP file
 - `--vars, -v` (required): Variables to plot, separated by commas
 - `--max_steps, -n` (required): Maximum number of timesteps to process
 - `--xml, -x` (optional): Path to ADIOS2 XML configuration file
@@ -168,15 +170,15 @@ python3 contour.py input_file.bp5 --vars ux,uy,pp --max_steps 10 --xml config.xm
 
 ```bash
 # With XML configuration (recommended)
-python3 compression.py input_file.bp5 50 --xml config.xml --output compressed.bp
+python3 compression.py input_file.bp 50 --xml config.xml --output compressed.bp
 
 # With specific error bound
-python3 compression.py input_file.bp5 50 --xml config.xml --errorBound 0.001 --output compressed.bp
+python3 compression.py input_file.bp 50 --xml config.xml --errorBound 0.001 --output compressed.bp
 ```
 
 **Arguments:**
 
-- `path` (required): Path to BP5 file to process
+- `path` (required): Path to BP file to process
 - `max_steps` (required): Maximum number of time steps to process
 - `--xml, -x` (optional): Path to ADIOS2 XML configuration file
 - `--errorBound, -eb` (optional): Error bound for compression (default: 0 - no compression)
@@ -186,10 +188,10 @@ python3 compression.py input_file.bp5 50 --xml config.xml --errorBound 0.001 --o
 
 ```bash
 # Compare high-res and low-res simulations
-python3 RMSE.py --highres ground_truth.bp5 --lowres compressed.bp5 --var ux --max_steps 10
+python3 RMSE.py --highres ground_truth.bp --lowres compressed.bp --var ux --max_steps 10
 
 # Compare different variables
-python3 RMSE.py --highres reference.bp5 --lowres test.bp5 --var pp --max_steps 25
+python3 RMSE.py --highres reference.bp --lowres test.bp --var pp --max_steps 25
 ```
 
 **Arguments:**
@@ -203,7 +205,7 @@ python3 RMSE.py --highres reference.bp5 --lowres test.bp5 --var pp --max_steps 2
 
 ### divCurl.py Output
 
-Creates a new BP5 file (default: `div_curl.bp`) containing:
+Creates a new BP file (default: `div_curl.bp`) containing:
 
 - `div`: Divergence field
 - `curl_x`, `curl_y`, `curl_z`: Curl components (3D) or `curl_z` only (2D)
@@ -226,7 +228,7 @@ Generates PNG images in `../RESULTS/` directory:
 
 ### compression.py Output
 
-Creates a compressed BP5 file with MGARD compression applied to all variables.
+Creates a compressed BP file with MGARD compression applied to all variables.
 
 ### RMSE.py Output
 
