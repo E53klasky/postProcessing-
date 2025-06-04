@@ -3,7 +3,7 @@ import argparse
 from adios2 import Adios, Stream
 from mpi4py import MPI
 
-# add feature to compress it for certain time steps 
+# does not work for more than one step????????
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
@@ -40,13 +40,13 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
     size = comm.Get_size()
 
     if xml_file == "no xml file provided":
-        adios = Adios(comm)  # pass comm for MPI
+        adios = Adios(comm)  
         op = adios.define_operator("CompressMGARD", "mgard", {"tolerance": str(error_bound)})
         print("Using mgard with error bound =", error_bound)
         print("This code does not work with out an XML right now comming soon ...")
         sys.exit(1)
     else:
-        adios = Adios(xml_file, comm)  # pass comm here too
+        adios = Adios(xml_file, comm)  
         op = None  
         print("Using compression settings from XML")
 
@@ -65,13 +65,11 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
                 for name, info in s.available_variables().items():
                     var_in = Rio.inquire_variable(name)
 
-                    # Get shape from info (you had this commented out)
                     shape = var_in.shape()
                     if not shape:
                         print(f"No shape info for variable {name}")
                         sys.exit(1)
 
-                    # Now split on 3rd dimension (shape[2])
                     total_slices = shape[2]
                     base = total_slices // size
                     rem = total_slices % size
