@@ -86,7 +86,7 @@ Compress ADIOS2 BP files using MGARD compression.
 
 - ✅ Works with XML configuration files
 - ⚠️ Standalone operation (without XML) is in development
-- ⚠️ Onlhy takes in MGARD
+- ⚠️ Only takes in MGARD
 
 ### RMSE.py
 
@@ -313,7 +313,6 @@ This project is under active development. Current development priorities:
 1. **High Priority**:
 
    - Parallel processing implementation across all scripts
-   - 3D streamline visualization fixes
    - Standalone compression functionality
 
 2. **Medium Priority**:
@@ -323,9 +322,7 @@ This project is under active development. Current development priorities:
    - Better documentation and examples
 
 3. **Low Priority**:
-   - Additional visualization options
-   - More compression algorithms
-   - GUI interface
+   - commets in code
 
 ### Development Guidelines
 
