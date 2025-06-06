@@ -1,5 +1,6 @@
 TODO -----------------------------------------------------
   
+make sure to completely read in then mpi wait then wright 
   
   1. Make parallel all codes work in parallel
   2. Clean up codes and make them better
