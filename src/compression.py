@@ -55,11 +55,12 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
     
     print(f"Opening input file: {bp_file}")
     
-    with Stream(Rio, bp_file, "r") as s, Stream(Wio, output_file, "w") as w:
+    with Stream(Rio, bp_file, "r", comm) as s, Stream(Wio, output_file, "w", comm) as w:
         variables_defined = False
 
         for step in s:
             status = s.begin_step()
+            comm.Barrier()
             if status:
                 print(f"Processing step {s.current_step()}")
                 w.begin_step()
@@ -88,14 +89,16 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
                     var_in.set_selection((start, count))
 
                     data = s.read(var_in)
+                    
 
                     if not variables_defined:
                         Wio.define_variable(name, data, shape, start, count)
-
+                    comm.Barrier()
                     w.write(name, data)
-
+                comm.Barrier()
                 variables_defined = True
                 w.end_step()
+                comm.Barrier()
 
                 if s.current_step() >= max_steps - 1:
                     print(f"Reached max_steps = {max_steps}")
