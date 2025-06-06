@@ -22,9 +22,13 @@ def calculate_global_velocity_range(all_data, is_3d=False):
         
         current_min = np.min(magnitude)
         current_max = np.max(magnitude)
-        
+        # for now
+        # Using color scale range: [0.000000, 0.591330]
         global_min = min(global_min, current_min)
         global_max = max(global_max, current_max)
+        
+        #global_min = 0
+        #global_max = 0.591330
         
         print(f"  Step {step}: min={current_min:.6f}, max={current_max:.6f}")
     
@@ -174,7 +178,7 @@ def main():
         adios_obj = Adios()
     
     io = adios_obj.declare_io("readerIO")
-    base_filename = os.path.basename(bp_file).split('.')[0]
+    base_filename = os.path.basename(bp_file).split('.bp')[0]
     
     all_data = []
     
