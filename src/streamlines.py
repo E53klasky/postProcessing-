@@ -114,7 +114,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
     parser.add_argument('path', 
                         type=str, 
-                        help='Path to the BP5 file to process (REQUIRED)')
+                        help='Path to the BP file to process (REQUIRED)')
     parser.add_argument('--xml', 
                         '-x', type=str, 
                         default=None, 

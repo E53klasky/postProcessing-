@@ -12,7 +12,7 @@ def parse_arguments():
 
     parser.add_argument('input_file', 
                         type=str,
-                        help='Path to the input ADIOS2 BP5 file (REQUIRED)')
+                        help='Path to the input ADIOS2 BP file (REQUIRED)')
 
     parser.add_argument('--xml', 
                         '-x', 
