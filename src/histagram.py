@@ -38,20 +38,18 @@ def main():
             min_val = flat_data.min()
             max_val = flat_data.max()
             print(f"Variable '{args.variable}' min: {min_val}, max: {max_val}")
-
+          
             counts, bin_edges = np.histogram(flat_data, bins=args.num_bins, range=(min_val, max_val))
 
+            bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+     
             plt.figure()
-            plt.bar(range(args.num_bins), counts, width=1.0, edgecolor='black')
-            plt.xlabel("Bin Index")
+            plt.bar(bin_centers, counts, width=(bin_edges[1] - bin_edges[0]), edgecolor='black', align='center')
+            plt.xlabel(f"{args.variable} values")
             plt.ylabel("Frequency")
             plt.title(f"Histogram of '{args.variable}' (step {step})")
             plt.tight_layout()
-
-            output_filename = f"{args.variable}_step_{step}_histogram.png"
-            output_path = os.path.join(results_dir, output_filename)
-            plt.savefig(output_path)
-            print(f"Histogram saved to {output_path}")
+            plt.savefig(f"../RESULTS/{args.variable}_step_{step}_histogram.png")
             plt.close()
 
             if step == args.max_steps - 1:
