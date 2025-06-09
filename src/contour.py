@@ -6,7 +6,7 @@ from adios2 import Adios, Stream
 from mpi4py import MPI
 import os
 
-
+# TODO: change to ./RESULTS
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Making contour plots')
 
