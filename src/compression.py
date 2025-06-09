@@ -98,7 +98,7 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, output_file="compre
 
                 variables_defined = True
 
-            
+
             for name, info in s.available_variables().items():
                 var_in = Rio.inquire_variable(name)
                 shape = var_in.shape()
@@ -160,4 +160,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
