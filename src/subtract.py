@@ -13,6 +13,7 @@ def parse_arguments():
     parser.add_argument("--output_file",default='subtract.bp' ,help="Output BP file for the result")
     parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML configuration (default: adios2.xml)")
     parser.add_argument("--max_steps", default=None, help="The number of max time steps")
+    parser.add_argument("--tolerance",default=None, help="Tolerance level of the error this will show 0 if it is <= the tolerance" )
     return parser.parse_args()
 
 
@@ -61,8 +62,14 @@ def main():
                 print(f"Shape mismatch: {shape1} vs {shape2}")
                 break
 
-
+            
             diff = abs(data1 - data2)
+            
+            diff = np.abs(data1 - data2)
+
+            if args.tolerance is not None:
+                tol = float(args.tolerance)
+            diff[diff <= tol] = 0.0
             
             fout.begin_step()
             fout.write("diff", diff, shape1, [0] * len(shape1), shape1)
