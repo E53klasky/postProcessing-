@@ -5,14 +5,15 @@ from adios2 import Adios, Stream, bindings
 # same size for now
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Subtract variables from two ADIOS2 files and write the difference.")
-    parser.add_argument("bpfile1", help="First input BP file") 
+    parser.add_argument("bpfile1", help="First input BP file lower Res") 
     parser.add_argument("--var1", help="Variable name from the first file")
     parser.add_argument("bpfile2", help="Second input BP file") 
-    parser.add_argument("--var2", help="Variable name from the second file")
+    parser.add_argument("--var2", help="Variable name from the second file higher res")
     parser.add_argument("--output_file",default='subtract.bp' ,help="Output BP file for the result")
     parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML configuration (default: adios2.xml)")
     parser.add_argument("--max_steps", default=None, help="The number of max time steps")
     parser.add_argument("--tolerance",default=None, help="Tolerance level of the error this will show 0 if it is <= the tolerance" )
+    parser.add_argument("--skip", type=int, default=0, help="number of points to skip for the higher resolution")
     return parser.parse_args()
 
 
@@ -25,9 +26,11 @@ def main():
     io1 = adios.declare_io("ReadIO1")
     io2 = adios.declare_io("ReadIO2")
     io_out = adios.declare_io("OutputIO")
-
-    print(f"Opening input streams: {args.bpfile1} and {args.bpfile2}")
-    with Stream(io1, args.bpfile1, "r") as f1, Stream(io2, args.bpfile2, "r") as f2, Stream(io_out, args.output_file, "w") as fout:
+    skip_factor = args.skip
+    GT = args.bpfile2
+    E = args.bpfile1
+    print(f"Opening input streams: {E} and {GT}")
+    with Stream(io1, E, "r") as f1, Stream(io2, GT, "r") as f2, Stream(io_out, args.output_file, "w") as fout:
         step = 0
         while True:
             print(f"\n--- Step {step} ---")
@@ -38,11 +41,11 @@ def main():
                 print("End of stream or error in first file.")
                 break
 
-            v1 = f1.inquire_variable(args.var1)
-            data1 = f1.read(v1)
-            shape1 = v1.shape()
+            e = f1.inquire_variable(args.var1)
+            error = f1.read(e)
+            error_shape = e.shape()
             f1.end_step()
-            print(f"Read {args.var1}  from {args.bpfile1}, shape = {shape1}")
+            print(f"Read {args.var1}  from {E}, shape = {error_shape}")
 
            
             status2 = f2.begin_step()
@@ -51,27 +54,28 @@ def main():
                 break
 
             v2 = f2.inquire_variable(args.var2)
-            data2 = f2.read(v2)
-            shape2 = v2.shape()
+            groud_truth = f2.read(v2)
+            GT_shape = v2.shape()
             f2.end_step()
-            print(f"Read {args.var2} from {args.bpfile2}, shape = {shape2}")
+            print(f"Read {args.var2} from {GT}, shape = {GT_shape}")
 
-    
-            if shape1 != shape2:
-                print(f"Shape mismatch: {shape1} vs {shape2}")
-                break
 
-            
-            diff = abs(data1 - data2)
-            
-            diff = np.abs(data1 - data2)
+            diff = np.zeros_like(error)
+            for i in range(error.shape[1]):  # assuming shape = [1, H, W]
+                for j in range(error.shape[2]):
+                    gt_i = int(i * skip_factor)
+                    gt_j = int(j * skip_factor)
+                    gt_value = groud_truth[0, gt_i, gt_j]
+                    e_value = error[0, i, j]
+                    diff[0, i, j] = np.abs(gt_value - e_value)
 
-            if args.tolerance is not None:
-                tol = float(args.tolerance)
-            diff[diff <= tol] = 0.0
+            # not important right now 
+            # if args.tolerance is not None:
+            #     tol = float(args.tolerance)
+            # diff[diff <= tol] = 0.0
             
             fout.begin_step()
-            fout.write("diff", diff, shape1, [0] * len(shape1), shape1)
+            fout.write(f"{args.var1} error.bp", diff, error_shape, [0] * len(error_shape), error_shape)
             fout.end_step()
 
             step += 1
@@ -83,12 +87,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Uncomment this section to generate a histogram of differences
-# import matplotlib.pyplot as plt
-# plt.hist(diff.flatten(), bins=50, alpha=0.7, label='Difference')
-# plt.legend()
-# plt.title("Histogram of Differences")
-# plt.xlabel("Difference")
-# plt.ylabel("Frequency")
-# plt.show()
