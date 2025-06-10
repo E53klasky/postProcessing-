@@ -61,7 +61,7 @@ def main():
 
 
             diff = np.zeros_like(error)
-            for i in range(error.shape[1]):  # assuming shape = [1, H, W]
+            for i in range(error.shape[1]):  
                 for j in range(error.shape[2]):
                     gt_i = int(i * skip_factor)
                     gt_j = int(j * skip_factor)
@@ -75,7 +75,7 @@ def main():
             # diff[diff <= tol] = 0.0
             
             fout.begin_step()
-            fout.write(f"{args.var1} error.bp", diff, error_shape, [0] * len(error_shape), error_shape)
+            fout.write(f"{args.var1}_error", diff, error_shape, [0] * len(error_shape), error_shape)
             fout.end_step()
 
             step += 1

@@ -6,8 +6,8 @@ def RMSE(GT, E, var_NAME, skip_factor):
     diff_sq = 0
     count = 0
 
-    for i in range(E.shape[0]):
-        for j in range(E.shape[1]):
+    for i in range(0,E.shape[0]):
+        for j in range(0,E.shape[1]):
             gt_value = GT[i * skip_factor, j * skip_factor]
             e_value = E[i, j]
             diff_sq += (gt_value - e_value) ** 2
