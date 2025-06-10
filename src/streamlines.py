@@ -44,28 +44,48 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     else:
         ux_2d = ux
         uy_2d = uy
-    
+
     ny, nx = ux_2d.shape
     x, y = np.meshgrid(np.linspace(0, 1, nx), np.linspace(0, 1, ny))
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
 
-    plt.figure(figsize=(10, 8))
+    # Calculate the velocity magnitude
     magnitude = np.sqrt(ux_2d**2 + uy_2d**2)
-    plt.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5)
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title(f"{base_filename} - 2D Streamlines - Step {step}")
 
-    cb = plt.colorbar(label="Velocity magnitude")
-    cb.mappable.set_clim(vmin, vmax)
+    # ------------------------------
+    # Plot and save all streamlines
+    # ------------------------------
+    fig_all, ax_all = plt.subplots(figsize=(10, 8))
+    strm_all = ax_all.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5)
+    ax_all.set_xlabel('X')
+    ax_all.set_ylabel('Y')
+    ax_all.set_title(f"{base_filename} - 2D Streamlines - Step {step}")
+    cb_all = fig_all.colorbar(strm_all.lines, ax=ax_all, label="Velocity magnitude")
+    cb_all.mappable.set_clim(vmin, vmax)
+    output_filename_all = f"{base_filename}_2d_all_streamlines_step{step:04d}.png"
+    output_path_all = os.path.join(output_dir, output_filename_all)
+    fig_all.savefig(output_path_all, dpi=300, bbox_inches='tight')
+    print(f"Saved all streamlines plot: {output_path_all}")
 
-    output_filename = f"{base_filename}_2d_streamlines_step{step:04d}.png"
-    output_path = os.path.join(output_dir, output_filename)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    # ---------------------------------------------
+    # Plot and save a single streamline from a point
+    # ---------------------------------------------
+    fig_one, ax_one = plt.subplots(figsize=(10, 8))
+    seed_points = np.array([[0.4,], [0.5,]])
+    strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T)
+    ax_one.set_xlabel('X')
+    ax_one.set_ylabel('Y')
+    ax_one.set_title(f"{base_filename} - 2D Single Streamline - Step {step}")
+    cb_one = fig_one.colorbar(strm_one.lines, ax=ax_one, label="Velocity magnitude")
+    cb_one.mappable.set_clim(vmin, vmax)
+    output_filename_one = f"{base_filename}_2d_single_streamline_step{step:04d}.png"
+    output_path_one = os.path.join(output_dir, output_filename_one)
+    fig_one.savefig(output_path_one, dpi=300, bbox_inches='tight')
+    print(f"Saved single streamline plot: {output_path_one}")
     plt.close()
     
-    return output_filename
+    return output_filename_one
 
 def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_2, slice_idx):
     """Plot 3D streamlines by extracting 2D slice"""
@@ -141,6 +161,7 @@ def parse_arguments():
     parser.add_argument('max_steps', 
                         type=int, 
                         help='Maximum number of time steps to process (REQUIRED)')
+    # add a point here
     return parser.parse_args()
 
 def main():
