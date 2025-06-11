@@ -7,6 +7,10 @@ from adios2 import Adios, Stream
 import mpi4py as MPI
 
 
+# You need to do the same with 3d also take in the seeds as a param
+# save segments and write out and save seed points 
+# segments are saved every other poitns as x,y so [[x0,y0], [x1,y1], [x2,y2], [x3,y3], [xn,yn]] -> x0,y0,x1,y1,x2,y2,x3,y3,xn,yn
+# this is going to be the samething for the seeds
 def calculate_global_velocity_range(all_data, is_3d=False):
     """Calculate global velocity range for consistent coloring"""
     global_min = float('inf')
@@ -50,14 +54,15 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Calculate the velocity magnitude
     magnitude = np.sqrt(ux_2d**2 + uy_2d**2)
 
     # ------------------------------
     # Plot and save all streamlines
     # ------------------------------
+    
     fig_all, ax_all = plt.subplots(figsize=(10, 8))
-    strm_all = ax_all.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5)
+    strm_all = ax_all.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, maxlength= 0.5)
+    
     ax_all.set_xlabel('X')
     ax_all.set_ylabel('Y')
     ax_all.set_title(f"{base_filename} - 2D Streamlines - Step {step}")
@@ -72,8 +77,41 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     # Plot and save a single streamline from a point
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
-    seed_points = np.array([[0.4,], [0.5,]])
-    strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T)
+    seed_points = np.array([[0.4], [0.5]])
+    strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T, maxlength=10, integration_direction='forward')
+    segments_list = strm_one.lines.get_segments()
+    segments = np.concatenate(segments_list, axis=0).flatten() if segments_list else np.array([], dtype=float)
+    seed_points_linear = seed_points.flatten() if seed_points.size else np.array([], dtype=float)
+    ad = Adios()
+    Wio = ad.declare_io("WriteIO")
+    variables_defined = False
+    
+    #NOTE ONLY SAVES THE LAST SEGMENTS STEPS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    with Stream(Wio, 'segments.bp', 'w') as w:
+        if not variables_defined:
+            seg_shape = [segments.size]
+            seg_start = [0]
+            seg_count = [segments.size]
+            var_seg = Wio.define_variable('segments', segments, seg_shape, seg_start, seg_count)
+            seed_shape = [seed_points_linear.size]
+            seed_start = [0]
+            seed_count = [seed_points_linear.size]
+            var_seed = Wio.define_variable('seeds', seed_points_linear, seed_shape, seed_start, seed_count)
+            
+        w.begin_step()
+        w.write('segments', segments)
+        w.write('seeds', seed_points_linear)
+        w.end_step()
+
+        
+    print('='*60)
+    print(segments_list)
+    for segments in segments_list:
+        ax_one.plot(segments[:, 0], segments[:, 1], color='red', linewidth=0.5)
+
+    # plt.show()
+    # sys.exit(1)
+    print('='*60)
     ax_one.set_xlabel('X')
     ax_one.set_ylabel('Y')
     ax_one.set_title(f"{base_filename} - 2D Single Streamline - Step {step}")
