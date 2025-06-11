@@ -4,6 +4,7 @@ from adios2 import Adios, Stream
 import argparse
 import sys
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
     
@@ -100,18 +101,26 @@ def main():
                 local_count_2 = base + 1 if rank < rem else base
                 local_start_2 = rank * base + min(rank, rem)
 
-                start = [0, 0, local_start_2] + [0] * (len(global_shape) - 3)
-                count = list(global_shape)
-                count[2] = local_count_2
+                read_start_2 = max(0, local_start_2 - 1)
+                read_end_2 = min(total_slices, local_start_2 + local_count_2 + 1)
+                read_count_2 = read_end_2 - read_start_2
+
+                write_start = [0, 0, local_start_2] + [0] * (len(global_shape) - 3)
+                write_count = list(global_shape)
+                write_count[2] = local_count_2
+
+                read_start = [0, 0, read_start_2] + [0] * (len(global_shape) - 3)
+                read_count = list(global_shape)
+                read_count[2] = read_count_2
 
                 if rank == 0:
-                    print(f"Rank {rank}: start={start}, count={count}")
+                    print(f"Rank {rank}: read_start={read_start}, read_count={read_count}")
+                    print(f"Rank {rank}: write_start={write_start}, write_count={write_count}")
 
-                uxR.set_selection((start, count))
-                uyR.set_selection((start, count))
-                uzR.set_selection((start, count))
+                uxR.set_selection((read_start, read_count))
+                uyR.set_selection((read_start, read_count))
+                uzR.set_selection((read_start, read_count))
                 
- 
                 ux = s.read(uxR)
                 uy = s.read(uyR)
                 uz = s.read(uzR)
@@ -121,26 +130,42 @@ def main():
                     print(f"Read data shapes: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}")
 
                 if len(global_shape) == 3 and global_shape[0] != 1:
-                    div = (np.gradient(ux, axis=2, edge_order=2) +
-                           np.gradient(uy, axis=1, edge_order=2) +
-                           np.gradient(uz, axis=0, edge_order=2))
+                    div_full = (np.gradient(ux, axis=2, edge_order=2) +
+                               np.gradient(uy, axis=1, edge_order=2) +
+                               np.gradient(uz, axis=0, edge_order=2))
                                    
-                    curl_x = np.gradient(uz, axis=1, edge_order=2) - np.gradient(uy, axis=0, edge_order=2)
-                    curl_y = np.gradient(ux, axis=0, edge_order=2) - np.gradient(uz, axis=2, edge_order=2)
-                    curl_z = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+                    curl_x_full = np.gradient(uz, axis=1, edge_order=2) - np.gradient(uy, axis=0, edge_order=2)
+                    curl_y_full = np.gradient(ux, axis=0, edge_order=2) - np.gradient(uz, axis=2, edge_order=2)
+                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+                    
+                    ghost_start = 1 if read_start_2 > 0 else 0
+                    ghost_end = ghost_start + local_count_2
+                    
+                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
+                    curl_x = np.ascontiguousarray(curl_x_full[:, :, ghost_start:ghost_end])
+                    curl_y = np.ascontiguousarray(curl_y_full[:, :, ghost_start:ghost_end])
+                    curl_z = np.ascontiguousarray(curl_z_full[:, :, ghost_start:ghost_end])
                     
                 elif len(global_shape) == 3 and global_shape[0] == 1: 
-                    div = (np.gradient(ux, axis=2, edge_order=2) +   
-                           np.gradient(uy, axis=1, edge_order=2))   
+                    div_full = (np.gradient(ux, axis=2, edge_order=2) +   
+                               np.gradient(uy, axis=1, edge_order=2))   
 
-                    curl_z = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
-                    curl_x = np.zeros_like(ux) 
-                    curl_y = np.zeros_like(uy)
+                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+                    curl_x_full = np.zeros_like(ux) 
+                    curl_y_full = np.zeros_like(uy)
+                    
+                    ghost_start = 1 if read_start_2 > 0 else 0
+                    ghost_end = ghost_start + local_count_2
+                    
+                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
+                    curl_x = np.ascontiguousarray(curl_x_full[:, :, ghost_start:ghost_end])
+                    curl_y = np.ascontiguousarray(curl_y_full[:, :, ghost_start:ghost_end])
+                    curl_z = np.ascontiguousarray(curl_z_full[:, :, ghost_start:ghost_end])
 
-                var_div = Wio.define_variable('Div', div, global_shape, start, count)
-                var_curlx = Wio.define_variable('Curl_x', curl_x, global_shape, start, count)
-                var_curly = Wio.define_variable('Curl_y', curl_y, global_shape, start, count)
-                var_curlz = Wio.define_variable('Curl_z', curl_z, global_shape, start, count)
+                var_div = Wio.define_variable('Div', div, global_shape, write_start, write_count)
+                var_curlx = Wio.define_variable('Curl_x', curl_x, global_shape, write_start, write_count)
+                var_curly = Wio.define_variable('Curl_y', curl_y, global_shape, write_start, write_count)
+                var_curlz = Wio.define_variable('Curl_z', curl_z, global_shape, write_start, write_count)
                 
                 variables_defined = True
                 
@@ -156,34 +181,54 @@ def main():
                 local_count_2 = base + 1 if rank < rem else base
                 local_start_2 = rank * base + min(rank, rem)
 
-                start = [0, 0, local_start_2] + [0] * (len(global_shape) - 3)
-                count = list(global_shape)
-                count[2] = local_count_2
+                read_start_2 = max(0, local_start_2 - 1)
+                read_end_2 = min(total_slices, local_start_2 + local_count_2 + 1)
+                read_count_2 = read_end_2 - read_start_2
 
-                uxR.set_selection((start, count))
-                uyR.set_selection((start, count))
-                uzR.set_selection((start, count))
+                read_start = [0, 0, read_start_2] + [0] * (len(global_shape) - 3)
+                read_count = list(global_shape)
+                read_count[2] = read_count_2
+
+                uxR.set_selection((read_start, read_count))
+                uyR.set_selection((read_start, read_count))
+                uzR.set_selection((read_start, read_count))
                 
                 ux = s.read(uxR)
                 uy = s.read(uyR)
                 uz = s.read(uzR)
 
                 if len(global_shape) == 3 and global_shape[0] != 1:
-                    div = (np.gradient(ux, axis=2, edge_order=2) +
-                           np.gradient(uy, axis=1, edge_order=2) +
-                           np.gradient(uz, axis=0, edge_order=2))
+                    div_full = (np.gradient(ux, axis=2, edge_order=2) +
+                               np.gradient(uy, axis=1, edge_order=2) +
+                               np.gradient(uz, axis=0, edge_order=2))
                                    
-                    curl_x = np.gradient(uz, axis=1, edge_order=2) - np.gradient(uy, axis=0, edge_order=2)
-                    curl_y = np.gradient(ux, axis=0, edge_order=2) - np.gradient(uz, axis=2, edge_order=2)
-                    curl_z = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+                    curl_x_full = np.gradient(uz, axis=1, edge_order=2) - np.gradient(uy, axis=0, edge_order=2)
+                    curl_y_full = np.gradient(ux, axis=0, edge_order=2) - np.gradient(uz, axis=2, edge_order=2)
+                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+
+                    ghost_start = 1 if read_start_2 > 0 else 0
+                    ghost_end = ghost_start + local_count_2
+                    
+                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
+                    curl_x = np.ascontiguousarray(curl_x_full[:, :, ghost_start:ghost_end])
+                    curl_y = np.ascontiguousarray(curl_y_full[:, :, ghost_start:ghost_end])
+                    curl_z = np.ascontiguousarray(curl_z_full[:, :, ghost_start:ghost_end])
                     
                 elif len(global_shape) == 3 and global_shape[0] == 1:
-                    div = (np.gradient(ux, axis=2, edge_order=2) +   
-                           np.gradient(uy, axis=1, edge_order=2))   
+                    div_full = (np.gradient(ux, axis=2, edge_order=2) +   
+                               np.gradient(uy, axis=1, edge_order=2))   
 
-                    curl_z = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
-                    curl_x = np.zeros_like(ux) 
-                    curl_y = np.zeros_like(uy)
+                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(ux, axis=1, edge_order=2)
+                    curl_x_full = np.zeros_like(ux) 
+                    curl_y_full = np.zeros_like(uy)
+                    
+                    ghost_start = 1 if read_start_2 > 0 else 0
+                    ghost_end = ghost_start + local_count_2
+                    
+                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
+                    curl_x = np.ascontiguousarray(curl_x_full[:, :, ghost_start:ghost_end])
+                    curl_y = np.ascontiguousarray(curl_y_full[:, :, ghost_start:ghost_end])
+                    curl_z = np.ascontiguousarray(curl_z_full[:, :, ghost_start:ghost_end])
 
             w.write('Div', div)
             w.write('Curl_x', curl_x)
