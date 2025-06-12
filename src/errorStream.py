@@ -4,22 +4,26 @@ import os
 import sys
 import argparse
 import numpy as np 
+import math 
+import matplotlib.pyplot as plt
 
+def RK_plot(segment_uncompressed, segment_compressed):
+    distances = []
 
-"""
+    for i in range(len(segment_compressed)):
+        for j in range(len(segment_compressed[i])):
+            diff = segment_uncompressed[i][j] - segment_compressed[i][j]
+            dist = math.sqrt(diff ** 2)
+            distances.append(dist)
 
-# Example: Two curves as lists of 2D points
-curve1 = [(0, 0), (1, 1), (2, 2)]
-curve2 = [(0, 0), (2, 1), (2, 2)]
+    plt.figure(figsize=(8, 4))
+    plt.plot(range(len(distances)), distances, marker='o', linestyle='-', color='b')
+    plt.title("Distance Error Plot")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("distance_error_plot.png")
+    plt.show()
 
-# Compute discrete Fréchet distance
-distance = frdist(curve1, curve2)
-
-print("Discrete Fréchet Distance:", distance)
-
-
-"""
-# add time steps for later
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Calculating the error of streamlines given the segments')
     
@@ -63,8 +67,8 @@ def main():
                 
                 distance = frdist(segments_f1_pairs, segments_f2_pairs)
                 print("Discrete Fréchet Distance:", distance)
-                
-                if step1 >= max_step -1 or step2 >= max_setep -1:
+                RK_plot(segments_f1_pairs, segments_f2_pairs)
+                if step1 >= max_step -1 or step2 >= max_step -1:
                     print(f"Reached max_steps = {max_step}")
                     break
                 
