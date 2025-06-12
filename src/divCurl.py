@@ -4,7 +4,7 @@ from adios2 import Adios, Stream
 import argparse
 import sys
 
-
+# need to manully change to take your own gradient what ever order you want 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
     
