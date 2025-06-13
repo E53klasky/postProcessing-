@@ -275,7 +275,7 @@ def main():
                 all_data.append((step, ux, uy, uz))
                 step_count += 1
                 
-                if status and step_count >= max_steps:
+                if not status or step_count >= max_steps:
                     print(f"End of steps reached or error reading step {step}")
                     break
                 else:
