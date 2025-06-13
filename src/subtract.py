@@ -2,7 +2,6 @@ import numpy as np
 import argparse
 from adios2 import Adios, Stream, bindings
 
-# same size for now
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Subtract variables from two ADIOS2 files and write the difference.")
     parser.add_argument("bpfile1", help="First input BP file lower Res") 
