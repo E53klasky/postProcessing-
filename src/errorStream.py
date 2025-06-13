@@ -21,7 +21,11 @@ def RK_plot(segment_uncompressed, segment_compressed):
     plt.title("Distance Error Plot")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("distance_error_plot.png")
+
+    output_dir = "../RESULTS"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    plt.savefig(os.path.join(output_dir, "distance_error_plot.png"))
     plt.show()
 
 def parse_arguments():
@@ -70,7 +74,6 @@ def main():
                 distance = frdist(segments_f1_pairs, segments_f2_pairs)
                 print("Discrete Fréchet Distance:", distance)
                 RK_plot(segments_f1_pairs, segments_f2_pairs)
-                # add parms to make better and essier
                 if  not statusf1 or not statusf2 or step1 >= max_step -1 or step2 >= max_step -1:
                     print(f"Reached max_steps = {max_step}")
                     break

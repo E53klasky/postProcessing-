@@ -9,8 +9,6 @@ import mpi4py as MPI
 
 # You need to do the same with 3d also take in the seeds as a param
 # save segments and write out and save seed points 
-# segments are saved every other poitns as x,y so [[x0,y0], [x1,y1], [x2,y2], [x3,y3], [xn,yn]] -> x0,y0,x1,y1,x2,y2,x3,y3,xn,yn
-# this is going to be the samething for the seeds
 def calculate_global_velocity_range(all_data, is_3d=False):
     """Calculate global velocity range for consistent coloring"""
     global_min = float('inf')
@@ -77,7 +75,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     # Plot and save a single streamline from a point
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
-    seed_points = np.array([[0.4], [0.5]])
+    seed_points = np.array([[0.5], [0.1]])
     strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T, maxlength=10, integration_direction='forward')
     segments_list = strm_one.lines.get_segments()
     segments = np.concatenate(segments_list, axis=0).flatten() if segments_list else np.array([], dtype=float)
@@ -169,7 +167,7 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
+    parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP files')
     parser.add_argument('path', 
                         type=str, 
                         help='Path to the BP file to process (REQUIRED)')
