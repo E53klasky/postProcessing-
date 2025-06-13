@@ -55,6 +55,8 @@ def main():
     with adios2.Stream(Rio1, file1, 'r' ) as f1,  adios2.Stream(Rio2, file2, 'r') as f2:
         for _ in f1:
             for _ in f2:
+                statusf1 = f1.begin_step()
+                statusf2 = f2.begin_step()
                 step1 = f1.current_step()
                 step2 = f2.current_step()
                 
@@ -68,7 +70,8 @@ def main():
                 distance = frdist(segments_f1_pairs, segments_f2_pairs)
                 print("Discrete Fréchet Distance:", distance)
                 RK_plot(segments_f1_pairs, segments_f2_pairs)
-                if step1 >= max_step -1 or step2 >= max_step -1:
+                # add parms to make better and essier
+                if  not statusf1 or not statusf2 or step1 >= max_step -1 or step2 >= max_step -1:
                     print(f"Reached max_steps = {max_step}")
                     break
                 

@@ -1,22 +1,29 @@
 import adios2
 import numpy as np
 import argparse
+import matplotlib.pyplot as plt
 
-def RMSE(GT, E, var_NAME, skip_factor):
+
+def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
+    error = np.zeros_like(E)
     diff_sq = 0
     count = 0
 
-    for i in range(0,E.shape[0]):
-        for j in range(0,E.shape[1]):
+    for i in range(E.shape[0]):
+        for j in range(E.shape[1]):
             gt_value = GT[i * skip_factor, j * skip_factor]
             e_value = E[i, j]
-            diff_sq += (gt_value - e_value) ** 2
+            error[i, j] = gt_value - e_value
+            diff_sq += (error[i, j]) ** 2
             count += 1
 
     rmse = np.sqrt(diff_sq / count)
     print("=" * 60)
     print(f"The RMSE for the ground truth {var_NAME} is: {rmse}")
     print()
+    return rmse, error
+
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Compute RMSE from ADIOS2 files")
@@ -38,6 +45,8 @@ def main():
         with adios2.Stream(RHio, args.highres, 'r') as rh:
             for _ in rl:
                 for _ in rh:
+                    statusL = rl.begin_step()
+                    statusR = rh.begin_step()
                     stepl = rl.current_step()
                     steh = rh.current_step()
                     print(f"Processing step {steh}")
@@ -50,9 +59,10 @@ def main():
                     if len(varh.shape) == 3 and varh.shape[0] == 1:
                         varh = varh[0, :, :]
 
-                    RMSE(varh, varl, args.var, args.skip_factor)
+                    rmse= RMSE(varh, varl, steh, args.var, args.skip_factor)
+                    
 
-                    if stepl >= args.max_steps - 1 or steh >= args.max_steps - 1:
+                    if not statusL or not statusR or stepl >= args.max_steps - 1 or steh >= args.max_steps - 1:
                         print(f"Reached max_steps = {args.max_steps}")
                         break
 
