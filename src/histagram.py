@@ -40,10 +40,10 @@ def main():
                 print(f"Reading step {step}")
 
             var_in = io.inquire_variable(var)
-            shape = var_in.shape()  # (1, Y, Z)
+            shape = var_in.shape()  
             Y, Z = shape[1], shape[2]
 
-            # Split work along Z
+            
             base = Z // size
             rem = Z % size
             local_z = base + 1 if rank < rem else base
@@ -53,42 +53,29 @@ def main():
             start = [0, 0, local_start]
             var_in.set_selection((start, count))
 
-            local_data = stream.read(var)[0]  # shape: (Y, local_z)
-            sendbuf = local_data.flatten()
+            local_data = stream.read(var)[0]
+            local_data = local_data.flatten()
 
-            recvcounts = comm.gather(sendbuf.size, root=0)
+            local_min = local_data.min()
+            local_max = local_data.max()
+
+            global_min = comm.allreduce(local_min, op=MPI.MIN)
+            global_max = comm.allreduce(local_max, op=MPI.MAX)
+
+            local_hist, bin_edges = np.histogram(local_data, bins=args.num_bins, range=(global_min, global_max))
+
+            global_hist = np.empty_like(local_hist)
+            comm.Reduce(local_hist, global_hist, op=MPI.SUM, root=0)
+           
+            if global_min == global_max:
+                global_max += 1e-6
 
             if rank == 0:
-                total_size = sum(recvcounts)
-                recvbuf = np.empty(total_size, dtype=sendbuf.dtype)
-            else:
-                recvbuf = None
-
-            comm.Gatherv(sendbuf, (recvbuf, recvcounts), root=0)
-
-            if rank == 0:
-                # Reconstruct full data
-                full_data = np.empty((Y, Z), dtype=sendbuf.dtype)
-
-                offset = 0
-                for i in range(size):
-                    z_len = base + 1 if i < rem else base
-                    z_start = i * base + min(i, rem)
-                    chunk = recvbuf[offset:offset + Y * z_len].reshape((Y, z_len))
-                    full_data[:, z_start:z_start + z_len] = chunk
-                    offset += Y * z_len
-
-                flat_data = full_data.flatten()
-
-                min_val = flat_data.min()
-                max_val = flat_data.max()
-                print(f"Variable '{var}' min: {min_val}, max: {max_val}")
-
-                counts, bin_edges = np.histogram(flat_data, bins=args.num_bins, range=(min_val, max_val))
                 bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
                 plt.figure()
-                plt.bar(bin_centers, counts, width=(bin_edges[1] - bin_edges[0]), edgecolor='black', align='center')
+                plt.bar(bin_centers, global_hist, width=(bin_edges[1] - bin_edges[0]),
+                        edgecolor='black', align='center')
                 plt.xlabel(f"{var} values")
                 plt.ylabel("Frequency")
                 plt.title(f"Histogram of '{var}' (step {step})")
