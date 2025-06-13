@@ -36,6 +36,7 @@ def main():
     with adios2.Stream(io, args.input_file, 'r', comm) as stream:
         for _ in stream:
             step = stream.current_step()
+            status = stream.begin_step()
             if rank == 0:
                 print(f"Reading step {step}")
 
@@ -83,7 +84,7 @@ def main():
                 plt.savefig(f"../RESULTS/{var}_step_{step}_histogram.png")
                 plt.close()
 
-            if step == args.max_steps - 1:
+            if not status or step == args.max_steps - 1:
                 if rank == 0:
                     print("Done")
                     print(f"Images saved to ../RESULTS")

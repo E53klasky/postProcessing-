@@ -62,7 +62,7 @@ def main():
     with adios2.Stream(io, input_file, 'r', comm) as stream:
         for step_count, _ in enumerate(stream):
             status = stream.begin_step()
-            if status and step_count >= max_steps:
+            if not status or step_count >= max_steps:
                 break
 
             for var in var_list:
