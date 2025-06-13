@@ -130,7 +130,7 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, compress_step, outp
                 w.end_step()
                 comm.Barrier()
 
-            if current >= max_steps - 1:
+            if not status or current >= max_steps - 1:
                 if rank == 0:
                     print(f"Reached max_steps = {max_steps}")
                 break

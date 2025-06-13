@@ -85,6 +85,7 @@ def main():
     with Stream(Rio, input_file, "r") as s:
         for steps in s:
             step = s.current_step()
+            status = s.begin_step()
             print(f"Processing step {s.current_step()}")
             
             data = {}
@@ -145,10 +146,11 @@ def main():
 
             
             
-            if s.current_step() >= max_steps - 1:
+            if not status or s.current_step() >= max_steps - 1:
                 print(f"Reached max_steps = {max_steps}")
                 break
     print("Images saved to ../RESULTS")
 
 if __name__ == "__main__":
+    
     main()

@@ -238,7 +238,7 @@ def main():
             w.end_step()
             comm.Barrier()
                                                             
-            if current_step >= max_steps - 1:
+            if not status or current_step >= max_steps - 1:
                 if rank == 0:
                     print(f"Reached max_steps = {max_steps}")
                 break

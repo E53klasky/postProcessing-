@@ -78,7 +78,7 @@ def main():
             fout.end_step()
 
             step += 1
-            if step == args.max_steps:
+            if not status1 or not status2 or step == args.max_steps:
                 break
 
     print("\nSubtraction completed and written to", args.output_file)
