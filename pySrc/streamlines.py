@@ -84,7 +84,7 @@ def calculate_global_velocity_range(all_data, is_3d=False):
     print(f"Global velocity magnitude range: [{global_min:.6f}, {global_max:.6f}]")
     return global_min, global_max
 
-def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
+def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writer=None):
     install()
     if len(ux.shape) == 3:
         mid_slice = ux.shape[2] // 2
@@ -193,34 +193,17 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     print(f"Saved RK4 streamline only plot: {output_path_third}")
     plt.close(fig_three)
 
-    # Save the streamline data using ADIOS2
-    # Convert streamline path to segments format for ADIOS2
-    segments = streamline_path.flatten()
-    seed_points = np.array([0.5, 0.1])
-    
-    ad = Adios()
-    Wio = ad.declare_io("WriteIO")
-    
-    # Write streamline data to BP file
-    output_bp_file = 'segments.bp'
-    with Stream(Wio, output_bp_file, 'w') as w:
-        # Define variables
-        seg_shape = [segments.size]
-        seg_start = [0]
-        seg_count = [segments.size]
-        var_seg = Wio.define_variable('segments', segments, seg_shape, seg_start, seg_count)
+    # Write streamline data to the shared BP file if writer is provided
+    if streamline_writer is not None:
+        # Convert streamline path to segments format for ADIOS2
+        segments = streamline_path.flatten()
+        seed_points = np.array([0.5, 0.1])
         
-        seed_shape = [seed_points.size]
-        seed_start = [0]
-        seed_count = [seed_points.size]
-        var_seed = Wio.define_variable('seeds', seed_points, seed_shape, seed_start, seed_count)
+        streamline_writer.begin_step()
+        streamline_writer.write('segments', segments)
+        streamline_writer.end_step()
         
-        w.begin_step()
-        w.write('segments', segments)
-        w.write('seeds', seed_points)
-        w.end_step()
-    
-    print(f"Saved streamline data to: {output_bp_file}")
+        print(f"Written streamline data for step {step} to segments.bp")
 
     output_filename_one = f"{base_filename}_2d_single_streamline_step{step:04d}.png"
     output_path_one = os.path.join(output_dir, output_filename_one)
@@ -402,25 +385,56 @@ def main():
     
     vmin, vmax = calculate_global_velocity_range(all_data, is_3d)
     
-    print("Second pass: Generating plots...")
-    for step, ux, uy, uz in all_data:
-        print(f"Processing step {step}")
+    # Initialize ADIOS2 for writing streamline data to single BP file
+    write_io = adios_obj.declare_io("WriteStreamlineIO")
+    streamline_output_file = 'segments.bp'
+    
+    print("Second pass: Generating plots and writing streamline data...")
+    
+    # Define variables based on first streamline calculation
+    first_step, first_ux, first_uy, first_uz = all_data[0]
+    if len(first_ux.shape) == 3:
+        mid_slice = first_ux.shape[2] // 2
+        first_ux_2d = first_ux[:, :, mid_slice]
+        first_uy_2d = first_uy[:, :, mid_slice]
+    else:
+        first_ux_2d = first_ux
+        first_uy_2d = first_uy
+    
+    # Calculate first streamline to get dimensions for variable definition
+    sample_streamline = rk4_streamline_from_grid(0.5, 0.1, first_ux_2d, first_uy_2d, max_len=2.0)
+    sample_segments = sample_streamline.flatten()
+    sample_seeds = np.array([0.5, 0.1])
+    
+    # Define variables for the BP file
+    seg_shape = [sample_segments.size]
+    var_segments = write_io.define_variable('segments', sample_segments, seg_shape, [0], seg_shape)
+    
+    seed_shape = [sample_seeds.size]
+    var_seeds = write_io.define_variable('seeds', sample_seeds, seed_shape, [0], seed_shape)
+    
+    # Open streamline writer
+    with Stream(write_io, streamline_output_file, 'w') as streamline_writer:
         
-        try:
-            if is_3d and uz is not None:
-                output_filename = plot_streamlines_3d(ux, uy, uz, step, base_filename, 
-                                                    vmin, vmax, var_1, var_2, slice_idx)
-            else:
-                output_filename = plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax)
+        for step, ux, uy, uz in all_data:
+            print(f"Processing step {step}")
             
-            if output_filename:
-                print(f"Saved: {output_filename}")
+            try:
+                if is_3d and uz is not None:
+                    output_filename = plot_streamlines_3d(ux, uy, uz, step, base_filename, 
+                                                        vmin, vmax, var_1, var_2, slice_idx)
+                else:
+                    output_filename = plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writer)
                 
-        except Exception as e:
-            print(f"Error processing step {step}: {e}")
-            continue
+                if output_filename:
+                    print(f"Saved: {output_filename}")
+                    
+            except Exception as e:
+                print(f"Error processing step {step}: {e}")
+                continue
     
     print("All streamline plots completed!")
+    print(f"Streamline data saved to: {streamline_output_file}")
     print("Please check the ../RESULTS")
 
 if __name__ == "__main__":
