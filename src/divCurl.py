@@ -3,9 +3,11 @@ import numpy as np
 from adios2 import Adios, Stream
 import argparse
 import sys
+from rich.traceback import install
 
 # need to manully change to take your own gradient what ever order you want 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description='Calculate divergence and curl from ADIOS2 BP5 velocity files')
     
     parser.add_argument('input_file', 
@@ -32,6 +34,7 @@ def parse_arguments():
 
 
 def main():
+    install()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -248,4 +251,5 @@ def main():
 
 
 if __name__ == "__main__":
+    install()
     main()

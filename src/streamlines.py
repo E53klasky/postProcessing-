@@ -5,11 +5,12 @@ import sys
 import argparse
 from adios2 import Adios, Stream
 import mpi4py as MPI
-
+from rich.traceback import install
 
 # You need to do the same with 3d also take in the seeds as a param
 # save segments and write out and save seed points 
 def calculate_global_velocity_range(all_data, is_3d=False):
+    install()
     """Calculate global velocity range for consistent coloring"""
     global_min = float('inf')
     global_max = float('-inf')
@@ -38,6 +39,7 @@ def calculate_global_velocity_range(all_data, is_3d=False):
     return global_min, global_max
 
 def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
+    install()
     if len(ux.shape) == 3:
         mid_slice = ux.shape[2] // 2
         ux_2d = ux[:, :, mid_slice]
@@ -86,6 +88,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     
     #NOTE ONLY SAVES THE LAST SEGMENTS STEPS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     with Stream(Wio, 'segments.bp', 'w') as w:
+        install()
         if not variables_defined:
             seg_shape = [segments.size]
             seg_start = [0]
@@ -125,6 +128,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
 
 def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_2, slice_idx):
     """Plot 3D streamlines by extracting 2D slice"""
+    install()
     if len(ux.shape) != 3:
         print(f"Warning: Expected 3D data, got {ux.shape}")
         return None
@@ -167,6 +171,7 @@ def plot_streamlines_3d(ux, uy, uz, step, base_filename, vmin, vmax, var_1, var_
 
 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP files')
     parser.add_argument('path', 
                         type=str, 
@@ -201,7 +206,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
-
+    install()
     
     args = parse_arguments()
     
@@ -315,4 +320,5 @@ def main():
     print("Please check the ../RESULTS")
 
 if __name__ == "__main__":
+    install()
     main()

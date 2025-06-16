@@ -7,8 +7,10 @@ import numpy as np
 import math 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from rich.traceback import install
 
 def RK_visualization(segment_compressed, segment_uncompressed, step=None):
+    install()
     errors = np.linalg.norm(segment_compressed - segment_uncompressed, axis=1)
 
     points = segment_compressed.reshape(-1, 1, 2)
@@ -17,7 +19,7 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     lc = LineCollection(segments, cmap='jet', norm=plt.Normalize(errors.min(), errors.max()))
     lc.set_array(errors[:-1])  
     lc.set_linewidth(3)
-
+    
     fig1, ax1 = plt.subplots(figsize=(10, 8))
     ax1.add_collection(lc)
     ax1.autoscale()
@@ -57,6 +59,7 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     plt.close(fig2)
 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description='Calculating the error of streamlines given the segments')
     
     parser.add_argument("--file1", type=str, required=True, help="First Adios file with streamline segments")
@@ -71,6 +74,7 @@ def parse_arguments():
 
 
 def main():
+    install()
     args = parse_arguments()
     xml = args.xml
     file1 = args.file1
@@ -110,3 +114,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    install()
+   

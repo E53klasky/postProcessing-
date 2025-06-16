@@ -5,8 +5,10 @@ import adios2
 import os
 import sys
 from mpi4py import MPI
+from rich.traceback import install
 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description="Generate histogram from ADIOS2 BP file variable.")
     parser.add_argument("input_file", type=str, help="Path to input .bp file")
     parser.add_argument("variable", type=str, help="Variable name to create histogram for")
@@ -17,6 +19,7 @@ def parse_arguments():
 
 
 def main():
+    install()
     args = parse_arguments()
 
     results_dir = os.path.abspath(os.path.join("..", "RESULTS"))
@@ -90,4 +93,5 @@ def main():
                     print(f"Images saved to ../RESULTS")
                 break
 if __name__ == "__main__":
+    install()
     main()

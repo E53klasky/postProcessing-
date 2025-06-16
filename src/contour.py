@@ -5,9 +5,10 @@ import argparse
 from adios2 import Adios, Stream
 from mpi4py import MPI
 import os
-
+from rich.traceback import install
 # TODO: change to ./RESULTS
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description='Making contour plots')
 
     parser.add_argument('input_file', 
@@ -49,6 +50,7 @@ def parse_arguments():
 
 
 def main():
+    install()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -152,5 +154,5 @@ def main():
     print("Images saved to ../RESULTS")
 
 if __name__ == "__main__":
-    
+    install()
     main()

@@ -1,8 +1,10 @@
 import numpy as np
 import argparse
 from adios2 import Adios, Stream, bindings
+from rich.traceback import install
 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description="Subtract variables from two ADIOS2 files and write the difference.")
     parser.add_argument("bpfile1", help="First input BP file lower Res") 
     parser.add_argument("--var1", help="Variable name from the first file")
@@ -17,6 +19,7 @@ def parse_arguments():
 
 
 def main():
+    install()
     args = parse_arguments()
     if args.xml is not None:
         adios = Adios(args.xml)
@@ -85,4 +88,5 @@ def main():
 
 
 if __name__ == "__main__":
+    install()
     main()
