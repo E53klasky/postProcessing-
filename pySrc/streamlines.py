@@ -7,6 +7,7 @@ from adios2 import Adios, Stream
 import mpi4py as MPI
 from rich.traceback import install
 from scipy.interpolate import RegularGridInterpolator
+from matplotlib.collections import LineCollection
 
 def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000, xlim=None, ylim=None):
     xgrid = np.linspace(0, 1, vx.shape[1])  
@@ -146,6 +147,51 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     ax_one.legend()
     ax_one.grid(True, alpha=0.3)
     ax_one.set_aspect('equal')
+    
+    # ---------------------------------------------
+    # Third plot: Just the RK4 streamline, colored by velocity magnitude
+    # ---------------------------------------------
+    fig_three, ax_three = plt.subplots(figsize=(10, 8))
+    
+    # Build interpolators for the raw velocity field (without normalization)
+    ux_interp = RegularGridInterpolator((np.linspace(0, 1, ny), np.linspace(0, 1, nx)), ux_2d)
+    uy_interp = RegularGridInterpolator((np.linspace(0, 1, ny), np.linspace(0, 1, nx)), uy_2d)
+    
+    # Compute velocity magnitude along the streamline points
+    magnitudes = []
+    for pt in streamline_path:
+        # Note: interpolation order is (y, x)
+        u_val = ux_interp((pt[1], pt[0]))
+        v_val = uy_interp((pt[1], pt[0]))
+        mag = np.hypot(u_val, v_val)
+        magnitudes.append(mag)
+    magnitudes = np.array(magnitudes)
+    
+    # Create line segments for the streamline
+    points = streamline_path.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Use the average magnitude on each segment for color mapping
+    segment_mags = 0.5 * (magnitudes[:-1] + magnitudes[1:])
+    
+    lc = LineCollection(segments, cmap='jet', 
+                        norm=plt.Normalize(vmin=segment_mags.min(), vmax=segment_mags.max()))
+    lc.set_array(segment_mags)
+    lc.set_linewidth(2)
+    ax_three.add_collection(lc)
+    
+    ax_three.set_xlim(x.min(), x.max())
+    ax_three.set_ylim(y.min(), y.max())
+    ax_three.set_xlabel('X')
+    ax_three.set_ylabel('Y')
+    ax_three.set_title(f"{base_filename} - 2D RK4 Streamline Colored by Velocity Magnitude - Step {step}")
+    ax_three.set_aspect('equal')
+    cbar = fig_three.colorbar(lc, ax=ax_three, label="Velocity Magnitude")
+    
+    output_filename_third = f"{base_filename}_2d_rk4_streamline_step{step:04d}.png"
+    output_path_third = os.path.join(output_dir, output_filename_third)
+    fig_three.savefig(output_path_third, dpi=300, bbox_inches='tight')
+    print(f"Saved RK4 streamline only plot: {output_path_third}")
+    plt.close(fig_three)
 
     # Save the streamline data using ADIOS2
     # Convert streamline path to segments format for ADIOS2
@@ -156,7 +202,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     Wio = ad.declare_io("WriteIO")
     
     # Write streamline data to BP file
-    output_bp_file = f'segments.bp'
+    output_bp_file = 'segments.bp'
     with Stream(Wio, output_bp_file, 'w') as w:
         # Define variables
         seg_shape = [segments.size]
