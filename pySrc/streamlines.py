@@ -7,6 +7,95 @@ from adios2 import Adios, Stream
 import mpi4py as MPI
 from rich.traceback import install
 
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import RegularGridInterpolator
+
+def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000, xlim=None, ylim=None):
+    # Create interpolators for vx and vy
+    print(vx.shape)
+    xgrid = np.linspace(0, 1, vx.shape[1])  # 1025 x-points (columns)
+    ygrid = np.linspace(0, 1, vx.shape[0])  # 513 y-points (rows)
+
+    interp_vx = RegularGridInterpolator((ygrid, xgrid), vx)
+    interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
+    def vector_field(x, y):
+        # Interpolate vector components at (x, y)
+        point = np.array([y, x])  # Note order: (y, x) for grid
+        u = float(interp_vx(point))
+        v = float(interp_vy(point))
+        norm = np.hypot(u, v)
+        if norm < 1e-8:
+            return np.array([0.0, 0.0])
+        return np.array([u, v]) / norm
+
+    path = [(x0, y0)]
+    x, y = x0, y0
+
+    arc_len = 0 
+    for _ in range(max_steps):
+        print(x,y)
+        k1 = vector_field(x, y)
+        k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
+        k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
+        k4 = vector_field(x + dt * k3[0], y + dt * k3[1])
+        dx, dy = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        x_prev = x
+        y_prev = y 
+        
+        x += dx
+        y += dy
+        arc_len +=np.sqrt(pow((x-x_prev),2) +  pow((y-y_prev),2) )
+        
+        if xlim and (x < xlim[0] or x > xlim[1]):
+            break
+        if ylim and (y < ylim[0] or y > ylim[1]):
+            break
+        path.append((x, y))
+        if max_len > 0 and arc_len >= max_len:
+            break
+    print(arc_len)
+    return np.array(path)
+
+# # Example usage:
+# if __name__ == "__main__":
+#     # Define grid
+#     xgrid = np.linspace(-3, 3, 100)
+#     ygrid = np.linspace(-3, 3, 100)
+#     X, Y = np.meshgrid(xgrid, ygrid)
+
+#     # Define vector field components on grid
+#     vx = -1 - X**2 + Y
+#     vy = 1 + X - Y**2
+
+#     # Set seed points
+#     seeds = [(-2, -2), (-1, -1), (0, 0), (1, 1), (2, 2)]
+
+#     plt.figure(figsize=(6, 6))
+#     for x0, y0 in seeds:
+#         streamline = rk4_streamline_from_grid(x0, y0, vx, vy, xgrid, ygrid,
+#                                               dt=0.05, max_steps=1000,
+#                                               xlim=(xgrid[0], xgrid[-1]),
+#                                               ylim=(ygrid[0], ygrid[-1]))
+#         plt.plot(streamline[:, 0], streamline[:, 1], label=f'Seed ({x0}, {y0})')
+
+#     # Plot the vector field as quiver for reference
+#     plt.quiver(X, Y, vx, vy, color='gray', alpha=0.5)
+
+#     plt.xlim(xgrid[0], xgrid[-1])
+#     plt.ylim(ygrid[0], ygrid[-1])
+#     plt.xlabel('x')
+#     plt.ylabel('y')
+#     plt.title('RK4 Streamlines from vx, vy grids')
+#     plt.grid(True)
+#     plt.legend()
+#     plt.gca().set_aspect('equal')
+#     plt.show()
+
+
+
+
 # You need to do the same with 3d also take in the seeds as a param
 # save segments and write out and save seed points 
 def calculate_global_velocity_range(all_data, is_3d=False):
@@ -78,7 +167,24 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
     seed_points = np.array([[0.5], [0.1]])
-    strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T, maxlength=10, integration_direction='forward')
+    #strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T, maxlength=1.1, integration_direction='forward')
+    
+    strm_one = rk4_streamline_from_grid(0.5,0.1,ux_2d,uy_2d, max_len=2.0)
+ 
+    print()
+    plt.plot(strm_one[:, 0], strm_one[:, 1], label=f'Seed (0.5 0.1 )')
+  
+ 
+    # Plot the vector field as quiver for reference
+
+
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title('RK4 Streamlines from vx, vy grids')
+    plt.grid(True)
+    plt.legend()
+    plt.gca().set_aspect('equal')
+    plt.show()
     segments_list = strm_one.lines.get_segments()
     segments = np.concatenate(segments_list, axis=0).flatten() if segments_list else np.array([], dtype=float)
     seed_points_linear = seed_points.flatten() if seed_points.size else np.array([], dtype=float)

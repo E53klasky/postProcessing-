@@ -2,9 +2,10 @@ import adios2
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-
+from rich.traceback import install
 
 def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
+    install()
     error = np.zeros_like(E)
     diff_sq = 0
     count = 0
@@ -26,6 +27,7 @@ def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
 
 
 def parse_arguments():
+    install()
     parser = argparse.ArgumentParser(description="Compute RMSE from ADIOS2 files")
     parser.add_argument("--lowres", required=True, help="Path to the lower resolution ADIOS2 file")
     parser.add_argument("--highres", required=True, help="Path to the ground truth (high resolution) ADIOS2 file")
@@ -35,6 +37,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
+    install()
     args = parse_arguments()
 
     adios = adios2.Adios()
@@ -67,4 +70,5 @@ def main():
                         break
 
 if __name__ == "__main__":
+    install()
     main()
