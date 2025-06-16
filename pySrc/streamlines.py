@@ -6,25 +6,19 @@ import argparse
 from adios2 import Adios, Stream
 import mpi4py as MPI
 from rich.traceback import install
-
-
-import numpy as np
-import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 
 def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000, xlim=None, ylim=None):
-    # Create interpolators for vx and vy
-    print(vx.shape)
-    xgrid = np.linspace(0, 1, vx.shape[1])  # 1025 x-points (columns)
-    ygrid = np.linspace(0, 1, vx.shape[0])  # 513 y-points (rows)
+    xgrid = np.linspace(0, 1, vx.shape[1])  
+    ygrid = np.linspace(0, 1, vx.shape[0]) 
 
     interp_vx = RegularGridInterpolator((ygrid, xgrid), vx)
     interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
     def vector_field(x, y):
-        # Interpolate vector components at (x, y)
-        point = np.array([y, x])  # Note order: (y, x) for grid
-        u = float(interp_vx(point))
-        v = float(interp_vy(point))
+        point = np.array([y, x]) 
+        # Fix the deprecation warning by ensuring single element extraction
+        u = interp_vx(point)[0] if isinstance(interp_vx(point), np.ndarray) else float(interp_vx(point))
+        v = interp_vy(point)[0] if isinstance(interp_vy(point), np.ndarray) else float(interp_vy(point))
         norm = np.hypot(u, v)
         if norm < 1e-8:
             return np.array([0.0, 0.0])
@@ -35,7 +29,6 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000
 
     arc_len = 0 
     for _ in range(max_steps):
-        print(x,y)
         k1 = vector_field(x, y)
         k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
         k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
@@ -55,44 +48,7 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000
         path.append((x, y))
         if max_len > 0 and arc_len >= max_len:
             break
-    print(arc_len)
     return np.array(path)
-
-# # Example usage:
-# if __name__ == "__main__":
-#     # Define grid
-#     xgrid = np.linspace(-3, 3, 100)
-#     ygrid = np.linspace(-3, 3, 100)
-#     X, Y = np.meshgrid(xgrid, ygrid)
-
-#     # Define vector field components on grid
-#     vx = -1 - X**2 + Y
-#     vy = 1 + X - Y**2
-
-#     # Set seed points
-#     seeds = [(-2, -2), (-1, -1), (0, 0), (1, 1), (2, 2)]
-
-#     plt.figure(figsize=(6, 6))
-#     for x0, y0 in seeds:
-#         streamline = rk4_streamline_from_grid(x0, y0, vx, vy, xgrid, ygrid,
-#                                               dt=0.05, max_steps=1000,
-#                                               xlim=(xgrid[0], xgrid[-1]),
-#                                               ylim=(ygrid[0], ygrid[-1]))
-#         plt.plot(streamline[:, 0], streamline[:, 1], label=f'Seed ({x0}, {y0})')
-
-#     # Plot the vector field as quiver for reference
-#     plt.quiver(X, Y, vx, vy, color='gray', alpha=0.5)
-
-#     plt.xlim(xgrid[0], xgrid[-1])
-#     plt.ylim(ygrid[0], ygrid[-1])
-#     plt.xlabel('x')
-#     plt.ylabel('y')
-#     plt.title('RK4 Streamlines from vx, vy grids')
-#     plt.grid(True)
-#     plt.legend()
-#     plt.gca().set_aspect('equal')
-#     plt.show()
-
 
 
 
@@ -161,74 +117,70 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax):
     output_path_all = os.path.join(output_dir, output_filename_all)
     fig_all.savefig(output_path_all, dpi=300, bbox_inches='tight')
     print(f"Saved all streamlines plot: {output_path_all}")
+    plt.close(fig_all)
 
     # ---------------------------------------------
     # Plot and save a single streamline from a point
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
-    seed_points = np.array([[0.5], [0.1]])
-    #strm_one = ax_one.streamplot(x, y, ux_2d, uy_2d, color=magnitude, cmap='jet', density=1.5, start_points=seed_points.T, maxlength=1.1, integration_direction='forward')
     
-    strm_one = rk4_streamline_from_grid(0.5,0.1,ux_2d,uy_2d, max_len=2.0)
- 
-    print()
-    plt.plot(strm_one[:, 0], strm_one[:, 1], label=f'Seed (0.5 0.1 )')
-  
- 
-    # Plot the vector field as quiver for reference
-
-
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.title('RK4 Streamlines from vx, vy grids')
-    plt.grid(True)
-    plt.legend()
-    plt.gca().set_aspect('equal')
-    plt.show()
-    segments_list = strm_one.lines.get_segments()
-    segments = np.concatenate(segments_list, axis=0).flatten() if segments_list else np.array([], dtype=float)
-    seed_points_linear = seed_points.flatten() if seed_points.size else np.array([], dtype=float)
-    ad = Adios()
-    Wio = ad.declare_io("WriteIO")
-    variables_defined = False
+    # Use your custom RK4 function to get streamline path
+    streamline_path = rk4_streamline_from_grid(0.5, 0.1, ux_2d, uy_2d, max_len=2.0)
     
-    #NOTE ONLY SAVES THE LAST SEGMENTS STEPS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    with Stream(Wio, 'segments.bp', 'w') as w:
-        install()
-        if not variables_defined:
-            seg_shape = [segments.size]
-            seg_start = [0]
-            seg_count = [segments.size]
-            var_seg = Wio.define_variable('segments', segments, seg_shape, seg_start, seg_count)
-            seed_shape = [seed_points_linear.size]
-            seed_start = [0]
-            seed_count = [seed_points_linear.size]
-            var_seed = Wio.define_variable('seeds', seed_points_linear, seed_shape, seed_start, seed_count)
-            
-        w.begin_step()
-        w.write('segments', segments)
-        w.write('seeds', seed_points_linear)
-        w.end_step()
+    # Plot the background velocity field for context
+    strm_bg = ax_one.streamplot(x, y, ux_2d, uy_2d, color='lightgray', density=0.5)
+    # Set alpha on the line collection
+    strm_bg.lines.set_alpha(0.3)
+    
+    # Plot the custom streamline
+    ax_one.plot(streamline_path[:, 0], streamline_path[:, 1], 'red', linewidth=2, 
+                label='Custom RK4 Streamline (0.5, 0.1)')
+    ax_one.plot(streamline_path[0, 0], streamline_path[0, 1], 'go', markersize=8, 
+                label='Start Point')
+    ax_one.plot(streamline_path[-1, 0], streamline_path[-1, 1], 'ro', markersize=8, 
+                label='End Point')
 
-        
-    print('='*60)
-    print(segments_list)
-    for segments in segments_list:
-        ax_one.plot(segments[:, 0], segments[:, 1], color='red', linewidth=0.5)
-
-    # plt.show()
-    # sys.exit(1)
-    print('='*60)
     ax_one.set_xlabel('X')
     ax_one.set_ylabel('Y')
-    ax_one.set_title(f"{base_filename} - 2D Single Streamline - Step {step}")
-    cb_one = fig_one.colorbar(strm_one.lines, ax=ax_one, label="Velocity magnitude")
-    cb_one.mappable.set_clim(vmin, vmax)
+    ax_one.set_title(f"{base_filename} - 2D Custom RK4 Streamline - Step {step}")
+    ax_one.legend()
+    ax_one.grid(True, alpha=0.3)
+    ax_one.set_aspect('equal')
+
+    # Save the streamline data using ADIOS2
+    # Convert streamline path to segments format for ADIOS2
+    segments = streamline_path.flatten()
+    seed_points = np.array([0.5, 0.1])
+    
+    ad = Adios()
+    Wio = ad.declare_io("WriteIO")
+    
+    # Write streamline data to BP file
+    output_bp_file = f'segments.bp'
+    with Stream(Wio, output_bp_file, 'w') as w:
+        # Define variables
+        seg_shape = [segments.size]
+        seg_start = [0]
+        seg_count = [segments.size]
+        var_seg = Wio.define_variable('segments', segments, seg_shape, seg_start, seg_count)
+        
+        seed_shape = [seed_points.size]
+        seed_start = [0]
+        seed_count = [seed_points.size]
+        var_seed = Wio.define_variable('seeds', seed_points, seed_shape, seed_start, seed_count)
+        
+        w.begin_step()
+        w.write('segments', segments)
+        w.write('seeds', seed_points)
+        w.end_step()
+    
+    print(f"Saved streamline data to: {output_bp_file}")
+
     output_filename_one = f"{base_filename}_2d_single_streamline_step{step:04d}.png"
     output_path_one = os.path.join(output_dir, output_filename_one)
     fig_one.savefig(output_path_one, dpi=300, bbox_inches='tight')
     print(f"Saved single streamline plot: {output_path_one}")
-    plt.close()
+    plt.close(fig_one)
     
     return output_filename_one
 
