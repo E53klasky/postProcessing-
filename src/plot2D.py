@@ -5,8 +5,10 @@ import os
 from mpi4py import MPI
 import numpy as np
 from PIL import Image
-
+from rich.traceback import install
+import sys
 def parser_arguments():
+    install()
     parser = argparse.ArgumentParser(description="Parallel 2D plot with consistent color scale")
     parser.add_argument('input_file', type=str, help='Path to the BP file to process (REQUIRED)')
     parser.add_argument('--xml', '-x', type=str, default=None, help='ADIOS2 XML config file (optional)')
@@ -15,6 +17,7 @@ def parser_arguments():
     return parser.parse_args()
 
 def save_rank_image(local_data, rank, var, step, vmin, vmax):
+    install()
     plt.imshow(local_data[0], cmap='inferno', aspect='auto', vmin=vmin, vmax=vmax)
     plt.axis('off')
     fname = f"tmp_{var}_rank{rank:03d}_step{step:04d}.png"
@@ -23,6 +26,7 @@ def save_rank_image(local_data, rank, var, step, vmin, vmax):
     return fname
 
 def stitch_images_horizontally(image_paths, output_path):
+    install()
     images = [Image.open(p) for p in image_paths]
     heights = [img.height for img in images]
     widths = [img.width for img in images]
@@ -39,6 +43,7 @@ def stitch_images_horizontally(image_paths, output_path):
     stitched.save(output_path)
 
 def main():
+    install()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -48,7 +53,9 @@ def main():
     adios2_xml = args.xml
     var_list = args.vars.split(',')
     max_steps = args.max_steps
-
+    if max_steps <= 0:
+        print(f"max_steps must be postive max_steps: {max_steps}")
+        sys.exit()
     if adios2_xml:
         adios = adios2.Adios(adios2_xml, comm)
     else:
@@ -111,4 +118,5 @@ def main():
         print(f"\nAll output saved in {output_dir}/")
 
 if __name__ == "__main__":
+    install()
     main()
