@@ -65,3 +65,4 @@ std::vector<double> gradient_1d_order6(const std::vector<double>& f , double dx)
 
     return grad;
 }
+
