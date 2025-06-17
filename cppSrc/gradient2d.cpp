@@ -2,6 +2,9 @@
 #include <stdexcept>
 #include <vector>
 
+// note you need to make it return a 2d vector  all grarbarge redo -----------------------------------------------------------
+
+
 // 2nd order accurate gradient in 2D
 // Returns a flattened 1D vector of size 2 * nx * ny
 // First nx*ny entries: ∂f/∂x, second nx*ny entries: ∂f/∂y

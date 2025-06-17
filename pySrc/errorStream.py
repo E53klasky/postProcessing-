@@ -58,6 +58,23 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     plt.savefig(os.path.join(output_dir, errorplot_filename), dpi=300, bbox_inches='tight')
     plt.close(fig2)
 
+    # Third plot: Compressed vs Uncompressed Streamlines
+    fig3, ax3 = plt.subplots(figsize=(10, 8))
+    ax3.plot(segment_compressed[:, 0], segment_compressed[:, 1], linestyle='-', color='red', label='Compressed')
+    ax3.plot(segment_uncompressed[:, 0], segment_uncompressed[:, 1], linestyle='--', color='green', label='Uncompressed')
+    ax3.set_xlabel("X")
+    ax3.set_ylabel("Y")
+    ax3.set_title("Compressed vs Uncompressed Streamlines")
+    ax3.legend()
+    ax3.grid(True)
+
+    streamline_comparison_filename = "streamline_comparison.png"
+    if step is not None:
+        streamline_comparison_filename = f"streamline_comparison_step_{step:04d}.png"
+
+    fig3.savefig(os.path.join(output_dir, streamline_comparison_filename), dpi=300, bbox_inches='tight')
+    plt.close(fig3)
+
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description='Calculating the error of streamlines given the segments')
@@ -88,28 +105,36 @@ def main():
     Rio1 = adios.declare_io("reader1")
     Rio2 = adios.declare_io("reader2")
     
-    with adios2.Stream(Rio1, file1, 'r' ) as f1,  adios2.Stream(Rio2, file2, 'r') as f2:
-        for _ in f1:
-            for _ in f2:
-                statusf1 = f1.begin_step()
-                statusf2 = f2.begin_step()
-                step1 = f1.current_step()
-                step2 = f2.current_step()
-                
-                print(f"processing step {step1}")
-                segments_f1 = f1.read('segments')
-                segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
-                
-                segments_f2 = f2.read('segments')
-                segments_f2_pairs = np.array(segments_f2).reshape(-1,2)
-                
-                distance = frdist(segments_f1_pairs, segments_f2_pairs)
-                print("Discrete Fréchet Distance:", distance)
-                RK_visualization(segments_f1_pairs, segments_f2_pairs)
-                if  not statusf1 or not statusf2 or step1 >= max_step -1 or step2 >= max_step -1:
-                    print(f"Reached max_steps = {max_step}")
-                    break
-                
+    with adios2.Stream(Rio1, file1, 'r') as f1, adios2.Stream(Rio2, file2, 'r') as f2:
+        step = 0
+        while True:
+            statusf1 = f1.begin_step()
+            statusf2 = f2.begin_step()
+            
+            # Check for end of streams
+            if not statusf1 or not statusf2 :
+                print("End of stream or error.")
+                break
+            
+            print(f"processing step {step}")
+            
+            segments_f1 = f1.read('segments')
+            segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
+            
+            segments_f2 = f2.read('segments')
+            segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
+            
+            distance = frdist(segments_f1_pairs, segments_f2_pairs)
+            print("Discrete Fréchet Distance:", distance)
+            
+            RK_visualization(segments_f1_pairs, segments_f2_pairs, step=step)
+
+            
+            step += 1
+            if step >= max_step:
+                print(f"Reached max_steps = {max_step}")
+                break
+
                 
 
 if __name__ == "__main__":

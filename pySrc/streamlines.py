@@ -17,7 +17,6 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000
     interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
     def vector_field(x, y):
         point = np.array([y, x]) 
-        # Fix the deprecation warning by ensuring single element extraction
         u = interp_vx(point)[0] if isinstance(interp_vx(point), np.ndarray) else float(interp_vx(point))
         v = interp_vy(point)[0] if isinstance(interp_vy(point), np.ndarray) else float(interp_vy(point))
         norm = np.hypot(u, v)
@@ -125,7 +124,6 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
     
-    # Use your custom RK4 function to get streamline path
     streamline_path = rk4_streamline_from_grid(0.5, 0.1, ux_2d, uy_2d, max_len=2.0)
     
     # Plot the background velocity field for context
@@ -153,21 +151,16 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     # ---------------------------------------------
     fig_three, ax_three = plt.subplots(figsize=(10, 8))
     
-    # Build interpolators for the raw velocity field (without normalization)
     ux_interp = RegularGridInterpolator((np.linspace(0, 1, ny), np.linspace(0, 1, nx)), ux_2d)
     uy_interp = RegularGridInterpolator((np.linspace(0, 1, ny), np.linspace(0, 1, nx)), uy_2d)
-    
-    # Compute velocity magnitude along the streamline points
     magnitudes = []
     for pt in streamline_path:
-        # Note: interpolation order is (y, x)
         u_val = ux_interp((pt[1], pt[0]))
         v_val = uy_interp((pt[1], pt[0]))
         mag = np.hypot(u_val, v_val)
         magnitudes.append(mag)
     magnitudes = np.array(magnitudes)
     
-    # Create line segments for the streamline
     points = streamline_path.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
     # Use the average magnitude on each segment for color mapping
@@ -193,9 +186,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     print(f"Saved RK4 streamline only plot: {output_path_third}")
     plt.close(fig_three)
 
-    # Write streamline data to the shared BP file if writer is provided
     if streamline_writer is not None:
-        # Convert streamline path to segments format for ADIOS2
         segments = streamline_path.flatten()
         seed_points = np.array([0.5, 0.1])
         
@@ -385,13 +376,11 @@ def main():
     
     vmin, vmax = calculate_global_velocity_range(all_data, is_3d)
     
-    # Initialize ADIOS2 for writing streamline data to single BP file
     write_io = adios_obj.declare_io("WriteStreamlineIO")
     streamline_output_file = 'segments.bp'
     
     print("Second pass: Generating plots and writing streamline data...")
     
-    # Define variables based on first streamline calculation
     first_step, first_ux, first_uy, first_uz = all_data[0]
     if len(first_ux.shape) == 3:
         mid_slice = first_ux.shape[2] // 2
@@ -401,19 +390,16 @@ def main():
         first_ux_2d = first_ux
         first_uy_2d = first_uy
     
-    # Calculate first streamline to get dimensions for variable definition
     sample_streamline = rk4_streamline_from_grid(0.5, 0.1, first_ux_2d, first_uy_2d, max_len=2.0)
     sample_segments = sample_streamline.flatten()
     sample_seeds = np.array([0.5, 0.1])
     
-    # Define variables for the BP file
     seg_shape = [sample_segments.size]
     var_segments = write_io.define_variable('segments', sample_segments, seg_shape, [0], seg_shape)
     
     seed_shape = [sample_seeds.size]
     var_seeds = write_io.define_variable('seeds', sample_seeds, seed_shape, [0], seed_shape)
     
-    # Open streamline writer
     with Stream(write_io, streamline_output_file, 'w') as streamline_writer:
         
         for step, ux, uy, uz in all_data:
