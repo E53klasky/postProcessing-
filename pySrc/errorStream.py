@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from rich.traceback import install
 
+# change names of lower and higher res
 def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     install()
     errors = np.linalg.norm(segment_compressed - segment_uncompressed, axis=1)
@@ -26,7 +27,10 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     ax1.set_aspect('equal')
     ax1.set_xlabel("X")
     ax1.set_ylabel("Y")
-    ax1.set_title("Compressed Streamline Colored by Error")
+    if step is not None:
+        ax1.set_title(f"Lower Resolution Streamline Colored by Error (Step {step:04d})")
+    else:
+        ax1.set_title("Lower Resolution Streamline Colored by Error")
     ax1.grid(False)
 
     cbar = plt.colorbar(lc, ax=ax1)
@@ -35,9 +39,9 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
 
-    streamline_filename = "highlighted_compressed_streamline.png"
+    streamline_filename = "highlighted_Lower_Resolution_streamline.png"
     if step is not None:
-        streamline_filename = f"highlighted_compressed_streamline_step_{step:04d}.png"
+        streamline_filename = f"highlighted_Lower_Resolution_streamline_step_{step:04d}.png"
 
     fig1.savefig(os.path.join(output_dir, streamline_filename), dpi=300, bbox_inches='tight')
     plt.close(fig1)
@@ -59,11 +63,14 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     plt.close(fig2)
 
     fig3, ax3 = plt.subplots(figsize=(10, 8))
-    ax3.plot(segment_compressed[:, 0], segment_compressed[:, 1], linestyle='-', color='red', label='Compressed')
-    ax3.plot(segment_uncompressed[:, 0], segment_uncompressed[:, 1], linestyle='--', color='green', label='Uncompressed')
+    ax3.plot(segment_compressed[:, 0], segment_compressed[:, 1], linestyle='-', color='red', label='Lower Res')
+    ax3.plot(segment_uncompressed[:, 0], segment_uncompressed[:, 1], linestyle='--', color='green', label='Higher res')
     ax3.set_xlabel("X")
     ax3.set_ylabel("Y")
-    ax3.set_title("Compressed vs Uncompressed Streamlines")
+    if step is not None:
+        ax3.set_title(f"Lower Resolution vs Higher Resolution Streamlines (Step {step:04d})")
+    else:
+        ax3.set_title("Lower Resolution vs Higher Resolution Streamlines")
     ax3.legend()
     ax3.grid(True)
 
@@ -78,8 +85,8 @@ def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description='Calculating the error of streamlines given the segments')
     
-    parser.add_argument("--file1", type=str, required=True, help="First Adios file with streamline segments")
-    parser.add_argument("--file2", type=str, required=True, help="Second Adios file with streamline segments")
+    parser.add_argument("--file1", type=str, required=True, help="First Adios file with streamline segments (lower resolution/compressed)")
+    parser.add_argument("--file2", type=str, required=True, help="Second Adios file with streamline segments (higher resoltuion)" )
 
     parser.add_argument("--max_steps", type=int, required=True, help="Maximum number of steps to process")
     parser.add_argument('--xml', 
@@ -138,6 +145,7 @@ def main():
             step += 1
 
         print(f"Finished processing {step} steps")
+        print("Saved Results to ../RESULTS")
 
 if __name__ == "__main__":
     main()
