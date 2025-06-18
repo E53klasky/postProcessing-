@@ -58,7 +58,6 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     plt.savefig(os.path.join(output_dir, errorplot_filename), dpi=300, bbox_inches='tight')
     plt.close(fig2)
 
-    # Third plot: Compressed vs Uncompressed Streamlines
     fig3, ax3 = plt.subplots(figsize=(10, 8))
     ax3.plot(segment_compressed[:, 0], segment_compressed[:, 1], linestyle='-', color='red', label='Compressed')
     ax3.plot(segment_uncompressed[:, 0], segment_uncompressed[:, 1], linestyle='--', color='green', label='Uncompressed')
@@ -97,6 +96,7 @@ def main():
     file1 = args.file1
     file2 = args.file2
     max_step = args.max_steps
+    
     if xml is not None:
         adios = adios2.Adios(xml)
     else:
@@ -107,16 +107,18 @@ def main():
     
     with adios2.Stream(Rio1, file1, 'r') as f1, adios2.Stream(Rio2, file2, 'r') as f2:
         step = 0
-        while True:
+        while step < max_step:
             statusf1 = f1.begin_step()
             statusf2 = f2.begin_step()
             
-            # Check for end of streams
-            if not statusf1 or not statusf2 :
-                print("End of stream or error.")
+            if not statusf1 or not statusf2:
+                print(f"End of stream reached at step {step}")
                 break
             
-            print(f"processing step {step}")
+            current_step_f1 = f1.current_step()
+            current_step_f2 = f2.current_step()
+            
+            print(f"Processing step {step} (f1: {current_step_f1}, f2: {current_step_f2})")
             
             segments_f1 = f1.read('segments')
             segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
@@ -124,20 +126,19 @@ def main():
             segments_f2 = f2.read('segments')
             segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
             
-            distance = frdist(segments_f1_pairs, segments_f2_pairs)
-            print("Discrete Fréchet Distance:", distance)
-            
-            RK_visualization(segments_f1_pairs, segments_f2_pairs, step=step)
+            # Uncomment if you want to calculate Fréchet distance
+            # distance = frdist(segments_f1_pairs, segments_f2_pairs)
+            # print("Discrete Fréchet Distance:", distance)
 
+            RK_visualization(segments_f1_pairs, segments_f2_pairs, step=step)
+            
+            f1.end_step()
+            f2.end_step()
             
             step += 1
-            if step >= max_step:
-                print(f"Reached max_steps = {max_step}")
-                break
 
-                
+        print(f"Finished processing {step} steps")
 
 if __name__ == "__main__":
     main()
     install()
-   

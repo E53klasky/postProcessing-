@@ -9,7 +9,10 @@ from rich.traceback import install
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib.collections import LineCollection
 
-def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000, xlim=None, ylim=None):
+# dt is the physical step size change for each 
+# 257 -> 0.002, 515 -> 0.0005, 1025-> 0.0001, 2049-> 0.00005, 4097 -> 0.000025
+# how to tell the all to be the same length full streamline then same steps then different dt
+def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.002, max_steps=10000, xlim=None, ylim=None):
     xgrid = np.linspace(0, 1, vx.shape[1])  
     ygrid = np.linspace(0, 1, vx.shape[0]) 
 
@@ -28,7 +31,9 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000
     x, y = x0, y0
 
     arc_len = 0 
+    cnt = 0 
     for _ in range(max_steps):
+        cnt +=1
         k1 = vector_field(x, y)
         k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
         k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
@@ -42,12 +47,20 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=-1, dt=0.01, max_steps=1000
         arc_len +=np.sqrt(pow((x-x_prev),2) +  pow((y-y_prev),2) )
         
         if xlim and (x < xlim[0] or x > xlim[1]):
+            print('xlim')
             break
         if ylim and (y < ylim[0] or y > ylim[1]):
+            print('ylim')
             break
         path.append((x, y))
+        
         if max_len > 0 and arc_len >= max_len:
+            print('arc length')            
             break
+    print(arc_len)
+    print("--"*60)
+    print(cnt)
+    print('--'*60)
     return np.array(path)
 
 
@@ -83,7 +96,8 @@ def calculate_global_velocity_range(all_data, is_3d=False):
     print(f"Global velocity magnitude range: [{global_min:.6f}, {global_max:.6f}]")
     return global_min, global_max
 
-def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writer=None):
+# make seeds in parallel 
+def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, save_fig, streamline_writer):
     install()
     if len(ux.shape) == 3:
         mid_slice = ux.shape[2] // 2
@@ -115,8 +129,9 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     cb_all.mappable.set_clim(vmin, vmax)
     output_filename_all = f"{base_filename}_2d_all_streamlines_step{step:04d}.png"
     output_path_all = os.path.join(output_dir, output_filename_all)
-    fig_all.savefig(output_path_all, dpi=300, bbox_inches='tight')
-    print(f"Saved all streamlines plot: {output_path_all}")
+    if save_fig:
+        fig_all.savefig(output_path_all, dpi=300, bbox_inches='tight')
+        print(f"Saved all streamlines plot: {output_path_all}")
     plt.close(fig_all)
 
     # ---------------------------------------------
@@ -124,7 +139,7 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     # ---------------------------------------------
     fig_one, ax_one = plt.subplots(figsize=(10, 8))
     
-    streamline_path = rk4_streamline_from_grid(0.5, 0.1, ux_2d, uy_2d, max_len=2.0)
+    streamline_path = rk4_streamline_from_grid(0.5, 0.1, ux_2d, uy_2d, max_len=1000)
     
     # Plot the background velocity field for context
     strm_bg = ax_one.streamplot(x, y, ux_2d, uy_2d, color='lightgray', density=0.5)
@@ -182,24 +197,29 @@ def plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writ
     
     output_filename_third = f"{base_filename}_2d_rk4_streamline_step{step:04d}.png"
     output_path_third = os.path.join(output_dir, output_filename_third)
-    fig_three.savefig(output_path_third, dpi=300, bbox_inches='tight')
-    print(f"Saved RK4 streamline only plot: {output_path_third}")
+    if save_fig:
+        fig_three.savefig(output_path_third, dpi=300, bbox_inches='tight')
+        print(f"Saved RK4 streamline only plot: {output_path_third}")
     plt.close(fig_three)
 
-    if streamline_writer is not None:
-        segments = streamline_path.flatten()
-        seed_points = np.array([0.5, 0.1])
-        
-        streamline_writer.begin_step()
-        streamline_writer.write('segments', segments)
-        streamline_writer.end_step()
-        
-        print(f"Written streamline data for step {step} to segments.bp")
+    
+    segments = streamline_path.flatten()
+    seed_points = np.array([0.5, 0.1])
+    
+    streamline_writer.begin_step()
+    print("="*60)
+    print(segments)
+    print("="*60)
+    streamline_writer.write('segments', segments)
+    streamline_writer.end_step()
+    
+    print(f"Written streamline data for step {step} to segments.bp")
 
     output_filename_one = f"{base_filename}_2d_single_streamline_step{step:04d}.png"
     output_path_one = os.path.join(output_dir, output_filename_one)
-    fig_one.savefig(output_path_one, dpi=300, bbox_inches='tight')
-    print(f"Saved single streamline plot: {output_path_one}")
+    if save_fig:
+        fig_one.savefig(output_path_one, dpi=300, bbox_inches='tight')
+        print(f"Saved single streamline plot: {output_path_one}")
     plt.close(fig_one)
     
     return output_filename_one
@@ -280,7 +300,13 @@ def parse_arguments():
     parser.add_argument('max_steps', 
                         type=int, 
                         help='Maximum number of time steps to process (REQUIRED)')
+    
+    parser.add_argument('--save_fig',
+                        type=bool,
+                        default=False,
+                        help='save images')
     # add a point here
+    
     return parser.parse_args()
 
 def main():
@@ -294,6 +320,8 @@ def main():
 
     bp_file = args.path
     xml_file = args.xml
+    save_fig = args.save_fig
+    print(f"saving figures = {save_fig}")
     is_3d = (args.mode == '3d')
     if is_3d == '3d':
         print("This code does not work in 3D mode yet, comming soon ...")
@@ -390,7 +418,7 @@ def main():
         first_ux_2d = first_ux
         first_uy_2d = first_uy
     
-    sample_streamline = rk4_streamline_from_grid(0.5, 0.1, first_ux_2d, first_uy_2d, max_len=2.0)
+    sample_streamline = rk4_streamline_from_grid(0.5, 0.1, first_ux_2d, first_uy_2d, max_len=1000)
     sample_segments = sample_streamline.flatten()
     sample_seeds = np.array([0.5, 0.1])
     
@@ -410,7 +438,7 @@ def main():
                     output_filename = plot_streamlines_3d(ux, uy, uz, step, base_filename, 
                                                         vmin, vmax, var_1, var_2, slice_idx)
                 else:
-                    output_filename = plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, streamline_writer)
+                    output_filename = plot_streamlines_2d(ux, uy, step, base_filename, vmin, vmax, save_fig, streamline_writer)
                 
                 if output_filename:
                     print(f"Saved: {output_filename}")
