@@ -133,9 +133,9 @@ def main():
             segments_f2 = f2.read('segments')
             segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
             
-            # Uncomment if you want to calculate Fréchet distance
-            # distance = frdist(segments_f1_pairs, segments_f2_pairs)
-            # print("Discrete Fréchet Distance:", distance)
+
+            distance = frdist(segments_f1_pairs, segments_f2_pairs)
+            print("Discrete Fréchet Distance:", distance)
 
             RK_visualization(segments_f1_pairs, segments_f2_pairs, step=step)
             
