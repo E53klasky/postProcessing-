@@ -7,14 +7,23 @@ import sys
 from mpi4py import MPI
 from rich.traceback import install
 
+
 def parse_arguments():
     install()
-    parser = argparse.ArgumentParser(description="Generate histogram from ADIOS2 BP file variable.")
+    parser = argparse.ArgumentParser(
+        description="Generate histogram from ADIOS2 BP file variable."
+    )
     parser.add_argument("input_file", type=str, help="Path to input .bp file")
-    parser.add_argument("variable", type=str, help="Variable name to create histogram for")
+    parser.add_argument(
+        "variable", type=str, help="Variable name to create histogram for"
+    )
     parser.add_argument("num_bins", type=int, help="Number of histogram bins")
-    parser.add_argument("max_steps", type=int, help="Maximum number of time steps to process")
-    parser.add_argument("--xml", type=str, default=None, help="Optional ADIOS2 XML configuration")
+    parser.add_argument(
+        "max_steps", type=int, help="Maximum number of time steps to process"
+    )
+    parser.add_argument(
+        "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
+    )
     return parser.parse_args()
 
 
@@ -36,7 +45,7 @@ def main():
 
     io = adios.declare_io("HistogramIO")
 
-    with adios2.Stream(io, args.input_file, 'r', comm) as stream:
+    with adios2.Stream(io, args.input_file, "r", comm) as stream:
         for _ in stream:
             step = stream.current_step()
             status = stream.begin_step()
@@ -44,10 +53,9 @@ def main():
                 print(f"Reading step {step}")
 
             var_in = io.inquire_variable(var)
-            shape = var_in.shape()  
+            shape = var_in.shape()
             Y, Z = shape[1], shape[2]
 
-            
             base = Z // size
             rem = Z % size
             local_z = base + 1 if rank < rem else base
@@ -66,11 +74,13 @@ def main():
             global_min = comm.allreduce(local_min, op=MPI.MIN)
             global_max = comm.allreduce(local_max, op=MPI.MAX)
 
-            local_hist, bin_edges = np.histogram(local_data, bins=args.num_bins, range=(global_min, global_max))
+            local_hist, bin_edges = np.histogram(
+                local_data, bins=args.num_bins, range=(global_min, global_max)
+            )
 
             global_hist = np.empty_like(local_hist)
             comm.Reduce(local_hist, global_hist, op=MPI.SUM, root=0)
-           
+
             if global_min == global_max:
                 global_max += 1e-6
 
@@ -78,8 +88,13 @@ def main():
                 bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
                 plt.figure()
-                plt.bar(bin_centers, global_hist, width=(bin_edges[1] - bin_edges[0]),
-                        edgecolor='black', align='center')
+                plt.bar(
+                    bin_centers,
+                    global_hist,
+                    width=(bin_edges[1] - bin_edges[0]),
+                    edgecolor="black",
+                    align="center",
+                )
                 plt.xlabel(f"{var} values")
                 plt.ylabel("Frequency")
                 plt.title(f"Histogram of '{var}' (step {step})")
@@ -92,6 +107,8 @@ def main():
                     print("Done")
                     print(f"Images saved to ../RESULTS")
                 break
+
+
 if __name__ == "__main__":
     install()
     main()

@@ -3,48 +3,72 @@ import argparse
 from adios2 import Adios, Stream
 from mpi4py import MPI
 
+
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Generate streamline plots from ADIOS2 BP5 files')
+    parser = argparse.ArgumentParser(
+        description="Generate streamline plots from ADIOS2 BP5 files"
+    )
 
-    parser.add_argument('path',
-                        type=str,
-                        help='Path to the BP5 file to process (REQUIRED)')
+    parser.add_argument(
+        "path", type=str, help="Path to the BP5 file to process (REQUIRED)"
+    )
 
-    parser.add_argument('--errorBound', '-eb',
-                        type=float,
-                        default=0,
-                        help='Error bound for compression (default: 0). No compression if 0. If using XML, it will take settings from there (optional)')
+    parser.add_argument(
+        "--errorBound",
+        "-eb",
+        type=float,
+        default=0,
+        help="Error bound for compression (default: 0). No compression if 0. If using XML, it will take settings from there (optional)",
+    )
 
-    parser.add_argument('max_steps',
-                        type=int,
-                        help='Maximum number of time steps to process (REQUIRED)')
+    parser.add_argument(
+        "max_steps", type=int, help="Maximum number of time steps to process (REQUIRED)"
+    )
 
-    parser.add_argument('--xml', '-x',
-                        type=str,
-                        default=None,
-                        help='Path to ADIOS2 XML configuration file (optional)')
+    parser.add_argument(
+        "--xml",
+        "-x",
+        type=str,
+        default=None,
+        help="Path to ADIOS2 XML configuration file (optional)",
+    )
 
-    parser.add_argument('--output', '-o',
-                        type=str,
-                        default='compressed.bp',
-                        help='Output file name (default: compressed.bp)')
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="compressed.bp",
+        help="Output file name (default: compressed.bp)",
+    )
 
-    parser.add_argument('--compres_step', '-c',
-                        type=int,
-                        default=None,
-                        help="If provided, compress only this specific step (optional)")
+    parser.add_argument(
+        "--compres_step",
+        "-c",
+        type=int,
+        default=None,
+        help="If provided, compress only this specific step (optional)",
+    )
 
     return parser.parse_args()
 
 
-def adios2_reader(bp_file, xml_file, error_bound, max_steps, compress_step, output_file="compressed.bp"):
+def adios2_reader(
+    bp_file,
+    xml_file,
+    error_bound,
+    max_steps,
+    compress_step,
+    output_file="compressed.bp",
+):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
 
     if xml_file is None:
         adios = Adios(comm)
-        op = adios.define_operator("CompressMGARD", "mgard", {"tolerance": str(error_bound)})
+        op = adios.define_operator(
+            "CompressMGARD", "mgard", {"tolerance": str(error_bound)}
+        )
         if rank == 0:
             print("Using MGARD compression with error bound =", error_bound)
             print("Code doesn't work without XML yet")
@@ -68,7 +92,7 @@ def adios2_reader(bp_file, xml_file, error_bound, max_steps, compress_step, outp
             status = s.begin_step()
             if not status:
                 break
-            
+
             current = s.current_step()
             comm.Barrier()
 
@@ -174,7 +198,7 @@ def main():
         error_bound=error_bound,
         max_steps=max_steps,
         compress_step=compress_step,
-        output_file=output_file
+        output_file=output_file,
     )
 
 

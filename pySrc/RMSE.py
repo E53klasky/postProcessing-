@@ -4,6 +4,7 @@ import argparse
 import matplotlib.pyplot as plt
 from rich.traceback import install
 
+
 def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
     install()
     error = np.zeros_like(E)
@@ -25,16 +26,34 @@ def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
     return rmse, error
 
 
-
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description="Compute RMSE from ADIOS2 files")
-    parser.add_argument("--lowres", required=True, help="Path to the lower resolution ADIOS2 file")
-    parser.add_argument("--highres", required=True, help="Path to the ground truth (high resolution) ADIOS2 file")
-    parser.add_argument("--var", required=True, help="Variable name to read from the files")
-    parser.add_argument("--max_steps", type=int, required=True, help="Maximum number of steps to process")
-    parser.add_argument("--skip_factor", type=int, required=True, help="The skip factor for the higher resolution")
+    parser.add_argument(
+        "--lowres", required=True, help="Path to the lower resolution ADIOS2 file"
+    )
+    parser.add_argument(
+        "--highres",
+        required=True,
+        help="Path to the ground truth (high resolution) ADIOS2 file",
+    )
+    parser.add_argument(
+        "--var", required=True, help="Variable name to read from the files"
+    )
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        required=True,
+        help="Maximum number of steps to process",
+    )
+    parser.add_argument(
+        "--skip_factor",
+        type=int,
+        required=True,
+        help="The skip factor for the higher resolution",
+    )
     return parser.parse_args()
+
 
 def main():
     install()
@@ -44,8 +63,8 @@ def main():
     RLio = adios.declare_io("readerIOLow")
     RHio = adios.declare_io("readerIOHigh")
 
-    with adios2.Stream(RLio, args.lowres, 'r') as rl:
-        with adios2.Stream(RHio, args.highres, 'r') as rh:
+    with adios2.Stream(RLio, args.lowres, "r") as rl:
+        with adios2.Stream(RHio, args.highres, "r") as rh:
             for _ in rl:
                 for _ in rh:
                     statusL = rl.begin_step()
@@ -62,12 +81,17 @@ def main():
                     if len(varh.shape) == 3 and varh.shape[0] == 1:
                         varh = varh[0, :, :]
 
-                    rmse= RMSE(varh, varl, steh, args.var, args.skip_factor)
-                    
+                    rmse = RMSE(varh, varl, steh, args.var, args.skip_factor)
 
-                    if not statusL or not statusR or stepl >= args.max_steps - 1 or steh >= args.max_steps - 1:
+                    if (
+                        not statusL
+                        or not statusR
+                        or stepl >= args.max_steps - 1
+                        or steh >= args.max_steps - 1
+                    ):
                         print(f"Reached max_steps = {args.max_steps}")
                         break
+
 
 if __name__ == "__main__":
     install()
