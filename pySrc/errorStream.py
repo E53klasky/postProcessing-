@@ -10,7 +10,7 @@ from matplotlib.collections import LineCollection
 from rich.traceback import install
 
 # change names of lower and higher res
-def RK_visualization(segment_compressed, segment_uncompressed, step=None):
+def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
     install()
     errors = np.linalg.norm(segment_compressed - segment_uncompressed, axis=1)
 
@@ -49,7 +49,7 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     fig2 = plt.figure(figsize=(10, 8))
     plt.plot(range(len(errors)), errors, marker='o', linestyle='-', color='b')
     plt.yscale("log")
-    plt.title("Distance Error Plot")
+    plt.title(f"Distance Error Plot {distance}")
     plt.xlabel("Point Index")
     plt.ylabel("Error Magnitude")
     plt.grid(True, which="both")
@@ -68,9 +68,9 @@ def RK_visualization(segment_compressed, segment_uncompressed, step=None):
     ax3.set_xlabel("X")
     ax3.set_ylabel("Y")
     if step is not None:
-        ax3.set_title(f"Lower Resolution vs Higher Resolution Streamlines (Step {step:04d})")
+        ax3.set_title(f"Lower Resolution vs Higher Resolution Streamlines (Step {step:04d}) error: {distance}")
     else:
-        ax3.set_title("Lower Resolution vs Higher Resolution Streamlines")
+        ax3.set_title(f"Lower Resolution vs Higher Resolution Streamlines error: {distance}")
     ax3.legend()
     ax3.grid(True)
 
@@ -93,8 +93,11 @@ def parse_arguments():
                         '-x', type=str, 
                         default=None, 
                         help='ADIOS2 XML config file default: None (optional)')
+    parser.add_argument("--var",
+                        '-v',type=str,
+                        default=None,
+                        help="varible to read in ")
     return parser.parse_args()
-
 
 def main():
     install()
@@ -103,7 +106,7 @@ def main():
     file1 = args.file1
     file2 = args.file2
     max_step = args.max_steps
-    
+    var = args.var 
     if xml is not None:
         adios = adios2.Adios(xml)
     else:
@@ -111,37 +114,39 @@ def main():
     
     Rio1 = adios.declare_io("reader1")
     Rio2 = adios.declare_io("reader2")
-    
+
     with adios2.Stream(Rio1, file1, 'r') as f1, adios2.Stream(Rio2, file2, 'r') as f2:
         step = 0
         while step < max_step:
             statusf1 = f1.begin_step()
             statusf2 = f2.begin_step()
-            
+
             if not statusf1 or not statusf2:
                 print(f"End of stream reached at step {step}")
                 break
-            
+
             current_step_f1 = f1.current_step()
             current_step_f2 = f2.current_step()
-            
             print(f"Processing step {step} (f1: {current_step_f1}, f2: {current_step_f2})")
-            
-            segments_f1 = f1.read('segments')
-            segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
-            
-            segments_f2 = f2.read('segments')
-            segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
-            
-            # Uncomment if you want to calculate Fréchet distance
-            # distance = frdist(segments_f1_pairs, segments_f2_pairs)
-            # print("Discrete Fréchet Distance:", distance)
 
-            RK_visualization(segments_f1_pairs, segments_f2_pairs, step=step)
-            
+            if step % 2 == 0:
+                var1 = f1.inquire_variable(var)
+                var2 = f2.inquire_variable(var)
+                segments_f1 = f1.read(var1)
+                segments_f2 = f2.read(var2)
+
+                segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
+                segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
+
+                distance = frdist(segments_f1_pairs, segments_f2_pairs)
+                print("Discrete Fréchet Distance:", distance)
+
+                RK_visualization(segments_f1_pairs, segments_f2_pairs, distance, step=step)
+
+            # Always end step regardless of whether we read the data or not
             f1.end_step()
             f2.end_step()
-            
+
             step += 1
 
         print(f"Finished processing {step} steps")
