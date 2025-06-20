@@ -68,9 +68,9 @@ def rk4_streamline_from_grid(x0, y0, vx, vy, max_len=3.0, dt=0.01, max_steps=100
                 print('arc length')            
                 break
 
-        print(arc_len)
+        print(f"Arc length: {arc_len}")
         print("--"*60)
-        print(cnt)
+        print(f"Number of RK4 steps: {cnt}")
         print('--'*60)
         print(len(path))
         paths.append(path)
@@ -177,7 +177,7 @@ def main():
         shape = [coords_x.size]
         OShape = [offsets.size]
         if not_defined:
-            # how to fix ?????????????????? when more than one thing
+            # works maybe offset could be better but works need to find patern
             var_coords_x = write_io.define_variable('coords_x', coords_x, shape, [0], shape)
             var_coords_y = write_io.define_variable('coords_y', coords_y, shape, [0], shape)
             var_offsets = write_io.define_variable('offsets', offsets , OShape, [0], OShape)
