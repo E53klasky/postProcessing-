@@ -24,6 +24,8 @@ class Reader:
         Reads a list of variable names from the .bp file across all timesteps.
         Returns a list containing the data arrays of each variable read.
         Handles step-based reading and prints progress and errors if encountered.
+        Outputs the data like this:
+        [vx_step0,vy_step0,vx_step1,vy_step1,vx_step2,vy_step2,vx_stepn,vy_stepn]
         """
         vars_Out = []
         reader = adios2.Stream(self.Read_IO, self.bp_file, "r")
