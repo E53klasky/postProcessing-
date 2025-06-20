@@ -1,4 +1,4 @@
-<?xml version="1.0"?>Add commentMore actions
+<?xml version="1.0"?>
 <adios-config>
   <io name="ReadIOCompressed">
     <engine type="BP5"/>

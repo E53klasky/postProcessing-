@@ -168,7 +168,7 @@ sudo apt-get update
 sudo apt-get install mpich libmpich-dev adios2-tools libadios2-dev python3-adios2 protobuf-compiler libprotobuf-dev
 
 # Install Python dependencies
-pip install numpy matplotlib mpi4py
+pip install numpy matplotlib mpi4py rich scipy frechetdist
 ```
 
 ### Linux (CentOS/RHEL/Rocky)
@@ -179,7 +179,7 @@ sudo dnf install mpich mpich-devel protobuf-compiler protobuf-devel
 # ADIOS2 may need to be built from source
 
 # Install Python dependencies
-pip install numpy matplotlib mpi4py
+pip install numpy matplotlib mpi4py rich scipy frechetdist
 ```
 
 ### macOS
@@ -190,7 +190,7 @@ brew install mpich protobuf
 # ADIOS2 and MGARD likely need to be built from source
 
 # Install Python dependencies
-pip install numpy matplotlib mpi4py
+pip install numpy matplotlib mpi4py rich scipy
 ```
 
 ## Troubleshooting
