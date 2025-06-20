@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from rich.traceback import install
 
+# make my own code on it and incldue for rk steps code 
 # change names of lower and higher res
 def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
     install()
@@ -81,77 +82,64 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     fig3.savefig(os.path.join(output_dir, streamline_comparison_filename), dpi=300, bbox_inches='tight')
     plt.close(fig3)
 
+
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description='Calculating the error of streamlines given the segments')
-    
-    parser.add_argument("--file1", type=str, required=True, help="First Adios file with streamline segments (lower resolution/compressed)")
-    parser.add_argument("--file2", type=str, required=True, help="Second Adios file with streamline segments (higher resoltuion)" )
 
+    parser.add_argument("--file1", type=str, required=True, help="First Adios file (low resolution/compressed)")
+    parser.add_argument("--file2", type=str, required=True, help="Second Adios file (high resolution)")
     parser.add_argument("--max_steps", type=int, required=True, help="Maximum number of steps to process")
-    parser.add_argument('--xml', 
-                        '-x', type=str, 
-                        default=None, 
-                        help='ADIOS2 XML config file default: None (optional)')
-    parser.add_argument("--var",
-                        '-v',type=str,
-                        default=None,
-                        help="varible to read in ")
+    parser.add_argument('--xml', '-x', type=str, default=None, help='ADIOS2 XML config file (optional)')
+
+    parser.add_argument("--var_x", type=str, required=True, help="Variable name for x coordinates")
+    parser.add_argument("--var_y", type=str, required=True, help="Variable name for y coordinates")
+    parser.add_argument("--var_offset", type=str, required=True, help="Variable name for offsets")
+
     return parser.parse_args()
 
 def main():
     install()
     args = parse_arguments()
-    xml = args.xml
-    file1 = args.file1
-    file2 = args.file2
-    max_step = args.max_steps
-    var = args.var 
-    if xml is not None:
-        adios = adios2.Adios(xml)
+
+    if args.xml:
+        adios = adios2.Adios(args.xml)
     else:
         adios = adios2.Adios()
-    
-    Rio1 = adios.declare_io("reader1")
-    Rio2 = adios.declare_io("reader2")
 
-    with adios2.Stream(Rio1, file1, 'r') as f1, adios2.Stream(Rio2, file2, 'r') as f2:
+    io1 = adios.declare_io("reader1")
+    io2 = adios.declare_io("reader2")
+
+    with adios2.Stream(io1, args.file1, 'r') as f1, adios2.Stream(io2, args.file2, 'r') as f2:
         step = 0
-        while step < max_step:
-            statusf1 = f1.begin_step()
-            statusf2 = f2.begin_step()
 
-            if not statusf1 or not statusf2:
+        while step < args.max_steps:
+            status1 = f1.begin_step()
+            status2 = f2.begin_step()
+
+            if not status1 or not status2:
                 print(f"End of stream reached at step {step}")
                 break
 
-            current_step_f1 = f1.current_step()
-            current_step_f2 = f2.current_step()
-            print(f"Processing step {step} (f1: {current_step_f1}, f2: {current_step_f2})")
+            # Read x, y from both files
+            coords_x_1 = np.array(f1.read(args.var_x))
+            coords_y_1 = np.array(f1.read(args.var_y))
 
-            if step % 2 == 0:
-                var1 = f1.inquire_variable(var)
-                var2 = f2.inquire_variable(var)
-                segments_f1 = f1.read(var1)
-                segments_f2 = f2.read(var2)
+            coords_x_2 = np.array(f2.read(args.var_x))
+            coords_y_2 = np.array(f2.read(args.var_y))
 
-                segments_f1_pairs = np.array(segments_f1).reshape(-1, 2)
-                segments_f2_pairs = np.array(segments_f2).reshape(-1, 2)
+            # Combine into coordinate pairs
+            segments_f1 = np.column_stack((coords_x_1, coords_y_1))
+            segments_f2 = np.column_stack((coords_x_2, coords_y_2))
 
-                distance = frdist(segments_f1_pairs, segments_f2_pairs)
-                print("Discrete Fréchet Distance:", distance)
-
-                RK_visualization(segments_f1_pairs, segments_f2_pairs, distance, step=step)
-
-            # Always end step regardless of whether we read the data or not
+            distance = frdist(segments_f1, segments_f2)
+            print(f"Step {step} - Discrete Fréchet Distance: {distance}")
+            RK_visualization(segments_f1,segments_f2,distance, step)
             f1.end_step()
             f2.end_step()
-
             step += 1
 
         print(f"Finished processing {step} steps")
-        print("Saved Results to ../RESULTS")
 
 if __name__ == "__main__":
     main()
-    install()
