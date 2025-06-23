@@ -2,87 +2,101 @@ import numpy as np
 import argparse
 from adios2 import Adios, Stream, bindings
 from rich.traceback import install
+from ReaderClass import Reader
+from WrighterClass import Writer  
 
 def parse_arguments():
-    install()
     parser = argparse.ArgumentParser(description="Subtract variables from two ADIOS2 files and write the difference.")
-    parser.add_argument("bpfile1", help="First input BP file lower Res") 
-    parser.add_argument("--var1", help="Variable name from the first file")
-    parser.add_argument("bpfile2", help="Second input BP file") 
-    parser.add_argument("--var2", help="Variable name from the second file higher res")
-    parser.add_argument("--output_file",default='subtract.bp' ,help="Output BP file for the result")
-    parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML configuration (default: adios2.xml)")
-    parser.add_argument("--max_steps", default=None, help="The number of max time steps")
-    parser.add_argument("--tolerance",default=None, help="Tolerance level of the error this will show 0 if it is <= the tolerance" )
-    parser.add_argument("--skip", type=int, default=0, help="number of points to skip for the higher resolution")
+
+    parser.add_argument("--bpfile1", help="Lower-resolution input BP file", required=True)
+    parser.add_argument("--bpfile2", help="Higher-resolution input BP file", required=True)
+
+    parser.add_argument("--Declare_Read_Io1", help="IO name for lower-resolution input", required=True)
+    parser.add_argument("--Declare_Read_Io2", help="IO name for higher-resolution input", required=True)
+
+    parser.add_argument("--Declare_Write_IO", help="IO name for writing output", required=True)
+
+    parser.add_argument("--var", help="Variable name to subtract", required=True)
+
+    parser.add_argument("--output_file", default='subtract.bp', help="Output BP file for the result")
+
+    parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML configuration (default: None)")
+
+    parser.add_argument("--tolerance", default=None, type=float,
+                        help="Tolerance level: differences <= tolerance will be set to 0")
+
+    parser.add_argument("--skip", type=int, default=0, help="Number of points to skip in the high-resolution file")
+
     return parser.parse_args()
 
 
 def main():
     install()
     args = parse_arguments()
-    if args.xml is not None:
-        adios = Adios(args.xml)
-    else:
-        adios = Adios()
-    io1 = adios.declare_io("ReadIO1")
-    io2 = adios.declare_io("ReadIO2")
-    io_out = adios.declare_io("OutputIO")
+    
+    bpfile1 = args.bpfile1
+    bpfile2 = args.bpfile2
+    
+
+    
+    Declare_Io1 = args.Declare_Read_Io1
+    Declare_Io2 = args.Declare_Read_Io2
+
+    
+    write_IO = args.Declare_Write_IO    
+    
     skip_factor = args.skip
+    
     GT = args.bpfile2
     E = args.bpfile1
+    output_File = args.output_file
     print(f"Opening input streams: {E} and {GT}")
-    with Stream(io1, E, "r") as f1, Stream(io2, GT, "r") as f2, Stream(io_out, args.output_file, "w") as fout:
-        step = 0
-        while True:
-            print(f"\n--- Step {step} ---")
+    
+    r_low = Reader(Declare_Io1, bpfile1)
+    r_high = Reader(Declare_Io2, bpfile2)
+    w = Writer(write_IO, output_File)
+    
+    var = args.var
+    print(f"Variable to subtract: {var}")
+    var_not_defined = True
+    while True:
+        status_low = r_low.begin_step()
+        status_high = r_high.begin_step()
+        w.begin_step()
+        
+        r_low.set_read_vars([var])
+        r_high.set_read_vars([var]) 
+        
+        if bindings.StepStatus.OK !=  status_low or bindings.StepStatus.OK != status_high:
+            break
+        low_res = r_low.read_step(var)
+        ground_truth = r_high.read_step(var)
+        
+        diff = np.zeros_like(low_res)
+        for i in range(low_res.shape[1]):  
+            for j in range(low_res.shape[2]):
+                gt_i = int(i * skip_factor)
+                gt_j = int(j * skip_factor)
+                gt_value = ground_truth[0, gt_i, gt_j]
+                e_value = low_res[0, i, j]
+                diff[0, i, j] = np.abs(gt_value - e_value)
+        
+        if args.tolerance is not None:
+            diff[diff <= float(args.tolerance)] = 0.0
+        if var_not_defined:
+            w.set_write_vars(diff, var)
 
-           
-            status1 = f1.begin_step()
-            if status1 != bindings.StepStatus.OK:
-                print("End of stream or error in first file.")
-                break
-
-            e = f1.inquire_variable(args.var1)
-            error = f1.read(e)
-            error_shape = e.shape()
-            f1.end_step()
-            print(f"Read {args.var1}  from {E}, shape = {error_shape}")
-
-           
-            status2 = f2.begin_step()
-            if status2 != bindings.StepStatus.OK:
-                print("End of stream or error in second file.")
-                break
-
-            v2 = f2.inquire_variable(args.var2)
-            groud_truth = f2.read(v2)
-            GT_shape = v2.shape()
-            f2.end_step()
-            print(f"Read {args.var2} from {GT}, shape = {GT_shape}")
-
-
-            diff = np.zeros_like(error)
-            for i in range(error.shape[1]):  
-                for j in range(error.shape[2]):
-                    gt_i = int(i * skip_factor)
-                    gt_j = int(j * skip_factor)
-                    gt_value = groud_truth[0, gt_i, gt_j]
-                    e_value = error[0, i, j]
-                    diff[0, i, j] = np.abs(gt_value - e_value)
-
-            # not important right now 
-            # if args.tolerance is not None:
-            #     tol = float(args.tolerance)
-            # diff[diff <= tol] = 0.0
-            
-            fout.begin_step()
-            fout.write(f"{args.var1}_error", diff, error_shape, [0] * len(error_shape), error_shape)
-            fout.end_step()
-
-            step += 1
-            if not status1 or not status2 or step == args.max_steps:
-                break
+        var_not_defined = False
+        w.write()
+        
+        w.end_step()
+        r_low.end_step()
+        r_high.end_step()
+    
+    r_low.close()
+    r_high.close()
+    w.close()
+        
 
     print("\nSubtraction completed and written to", args.output_file)
 
