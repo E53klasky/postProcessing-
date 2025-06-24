@@ -1,13 +1,12 @@
 import adios2
 from frechetdist import frdist
 import os
-import sys
 import argparse
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from rich.traceback import install
+from ReaderClass import Reader
 
 
 def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
@@ -126,13 +125,19 @@ def parse_arguments():
         required=True,
         help="Second Adios file with streamline segments (higher resoltuion)",
     )
-
     parser.add_argument(
-        "--max_steps",
-        type=int,
-        required=True,
-        help="Maximum number of steps to process",
+        "--IO_Name1",
+        type=str,
+        default="reader1",
+        help="IO Name for the first Adios file (default: reader1)",
     )
+    parser.add_argument(
+        "--IO_Name2",
+        type=str,
+        default="reader2",
+        help="IO Name for the first Adios file (default: reader1)",
+    )
+
     parser.add_argument(
         "--xml", "-x", type=str, default=None, help="ADIOS2 XML config file (optional)"
     )
@@ -153,48 +158,58 @@ def parse_arguments():
 def main():
     install()
     args = parse_arguments()
+    r_low = Reader(args.IO_Name1, args.file1, xml=args.xml)
+    r_high = Reader(args.IO_Name2, args.file2, xml=args.xml)
 
-    if args.xml:
-        adios = adios2.Adios(args.xml)
-    else:
-        adios = adios2.Adios()
+    while True:
+        status_low = r_low.begin_step()
+        status_high = r_high.begin_step()
 
-    io1 = adios.declare_io("reader1")
-    io2 = adios.declare_io("reader2")
 
-    with adios2.Stream(io1, args.file1, "r") as f1, adios2.Stream(
-        io2, args.file2, "r"
-    ) as f2:
-        step = 0
+        if (status_low != adios2.bindings.StepStatus.OK or status_high != adios2.bindings.StepStatus.OK):
+            break
+        
+                
+        r_high.set_read_vars([args.var_x, args.var_y, args.var_offset])
+        r_low.set_read_vars([args.var_x, args.var_y, args.var_offset])
+        
+        if (
+            r_low.vars_Out.get(args.var_x) is None
+            or r_low.vars_Out.get(args.var_y) is None
+            or r_low.vars_Out.get(args.var_offset) is None
+        ):
+            print("Variables not found in the low resolution stream.")
+            break
 
-        while step < args.max_steps:
-            status1 = f1.begin_step()
-            status2 = f2.begin_step()
+        segment_compressed_x = r_low.read_step(args.var_x)
+        segment_compressed_y = r_low.read_step(args.var_y)
+        segment_compressed_offset = r_low.read_step(args.var_offset)
 
-            if not status1 or not status2:
-                print(f"End of stream reached at step {step}")
-                break
+        segment_uncompressed_x = r_high.read_step(args.var_x)
+        segment_uncompressed_y = r_high.read_step(args.var_y)
+        segment_uncompressed_offset = r_high.read_step(args.var_offset)  # ✅ fix here
 
-            # Read x, y from both files
-            coords_x_1 = np.array(f1.read(args.var_x))
-            coords_y_1 = np.array(f1.read(args.var_y))
+        segment_compressed_pairs = np.column_stack(
+            (segment_compressed_x, segment_compressed_y)
+        )
+        segment_uncompressed_pairs = np.column_stack(
+            (segment_uncompressed_x, segment_uncompressed_y)
+        )
+        distance = frdist(segment_compressed_pairs, segment_uncompressed_pairs)
+        print(f"Distance between segments: {distance}")
+        RK_visualization(
+            segment_compressed_pairs,
+            segment_uncompressed_pairs,
+            distance,
+            step=r_low.current_step,
+        )
 
-            coords_x_2 = np.array(f2.read(args.var_x))
-            coords_y_2 = np.array(f2.read(args.var_y))
+        r_low.end_step()
+        r_high.end_step()
 
-            # Combine into coordinate pairs
-            segments_f1 = np.column_stack((coords_x_1, coords_y_1))
-            segments_f2 = np.column_stack((coords_x_2, coords_y_2))
-
-            distance = frdist(segments_f1, segments_f2)
-            print(f"Step {step} - Discrete Fréchet Distance: {distance}")
-            RK_visualization(segments_f1, segments_f2, distance, step)
-            f1.end_step()
-            f2.end_step()
-            step += 1
-
-        print(f"Finished processing {step} steps")
-        print("Saved Results to ../RESULTS")
+    r_low.close()
+    r_high.close()
+    print("Finished Error finished.")
 
 
 if __name__ == "__main__":

@@ -148,8 +148,9 @@ def parse_arguments():
         "-iow",
         type=str,
         required=True,
-        help="Name you want to declare the io name as for writing (REQUIRED)")
-    
+        help="Name you want to declare the io name as for writing (REQUIRED)",
+    )
+
     parser.add_argument(
         "--output",
         "-o",
@@ -173,38 +174,40 @@ def main():
     var_names = [v.strip() for v in args.vars.split(",")]
     x_seeds, y_seeds = parse_seed_points(args.seeds_points)
     output_file = args.output
-    print(x_seeds, y_seeds)
     adios_obj = adios2.Adios()
-    reader = ReaderClass.Reader(
-        IO_Name=io_name, bp_file=bp_file, xml=xml_file
-    )
-    
+    reader = ReaderClass.Reader(IO_Name=io_name, bp_file=bp_file, xml=xml_file)
+
     wrigher = WrighterClass.Writer(
         IO_Name=io_write_name, bp_file=output_file, xml=xml_file
     )
-    
-    
+
     print("Making streamlines Now")
 
     not_defined = True
     while True:
         status = reader.begin_step()
         wrigher.begin_step()
+
+        if status != adios2.bindings.StepStatus.OK:
+            break
         
         reader.set_read_vars(var_names)
-
-        if status != adios2.bindings.StepStatus.OK:         
+        if (reader.vars_Out.get(var_names[0]) is None
+            or reader.vars_Out.get(var_names[1]) is None
+        ):
+            print("Variables not found in the stream.")
             break
         data = []
         for i in range(len(var_names)):
             data.append(reader.read_step(var_names[i]))
             if len(data[i].shape) == 3 and data[i].shape[0] == 1:
                 data[i] = np.squeeze(data[i])
-
-        coords_x, coords_y, offsets = rk4_streamline_from_grid(
-            x_seeds, y_seeds, data[0],data[1], max_len=1000
-        )
+    
         
+        coords_x, coords_y, offsets = rk4_streamline_from_grid(
+            x_seeds, y_seeds, data[0], data[1], max_len=1000
+        )
+
         coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
         coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
         offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
@@ -212,7 +215,7 @@ def main():
         coords_x = coords_x.flatten()
         coords_y = coords_y.flatten()
         offsets = offsets.flatten()
-        
+
         if not_defined:
             wrigher.set_write_vars(coords_x, "coords_x")
             wrigher.set_write_vars(coords_y, "coords_y")
@@ -223,7 +226,7 @@ def main():
         wrigher.write("offsets", offsets)
         wrigher.end_step()
         reader.end_step()
-    
+
     reader.close()
     wrigher.close()
     print(f"All streamline segments saved to {output_file}!")

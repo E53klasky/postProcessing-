@@ -87,14 +87,25 @@ def main():
         status_high = r_high.begin_step()
         w.begin_step()
 
-        r_low.set_read_vars([var])
-        r_high.set_read_vars([var])
+      
 
         if (
             bindings.StepStatus.OK != status_low
             or bindings.StepStatus.OK != status_high
         ):
             break
+        
+        r_low.set_read_vars([var])
+        r_high.set_read_vars([var])
+        
+        if (
+            r_low.vars_Out.get(var) is None 
+            or r_high.vars_Out.get(var) is None
+        ):
+            print("Variables not found in the low resolution stream.")
+            break
+
+        
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
@@ -106,7 +117,7 @@ def main():
                 gt_value = ground_truth[0, gt_i, gt_j]
                 e_value = low_res[0, i, j]
                 # can make it abs if needed
-                diff[0, i, j] = (gt_value - e_value)
+                diff[0, i, j] = gt_value - e_value
 
         if args.tolerance is not None:
             diff[diff <= float(args.tolerance)] = 0.0

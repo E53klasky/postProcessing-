@@ -31,7 +31,7 @@ class Writer:
         self.current_step = self.Adios_writer.current_step()
         print(f"Writing step: {self.current_step}")
 
-    def write(self, name,data):
+    def write(self, name, data):
         self.Adios_writer.write(name, data)
 
     def end_step(self):
@@ -41,7 +41,6 @@ class Writer:
     def close(self):
         self.Adios_writer.close()
         print("Writer closed successfully.")
-
 
 
 # === ✅ How to Use the Writer Class ===
