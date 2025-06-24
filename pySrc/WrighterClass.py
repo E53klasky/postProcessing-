@@ -31,9 +31,8 @@ class Writer:
         self.current_step = self.Adios_writer.current_step()
         print(f"Writing step: {self.current_step}")
 
-    def write(self):
-        for name, (adios_var, data) in self.vars_Out.items():
-            self.Adios_writer.write(name, data)
+    def write(self, name,data):
+        self.Adios_writer.write(name, data)
 
     def end_step(self):
         self.Adios_writer.end_step()
@@ -44,25 +43,26 @@ class Writer:
         print("Writer closed successfully.")
 
 
-# # === ✅ How to Use ===
 
-# # Example data
+# # === ✅ How to Use the Writer Class ===
+
+# # 1. Prepare your data
 # var1 = np.arange(10, dtype=np.float64)
 # var2 = np.linspace(0, 1, 10, dtype=np.float64)
 
-# # Create writer
-# w = Wrigher("example.bp", "example_IO", "example.xml")
+# # 2. Create a Writer object
+# # Arguments: IO_Name, output file name (optional), XML config file (optional)
+# w = Writer(IO_Name="example_IO", bp_file="example.bp", xml=None)
 
-# # Set variables (you call this for each variable individually)
+# # 3. Define variables you want to write (must be done before writing)
 # w.set_write_vars(var1, "var1")
 # w.set_write_vars(var2, "var2")
 
-# # Write one timestep
-# while True:
+# # 4. Write a single timestep (you can loop this for multiple steps)
 # w.begin_step()
-# w.write()
+# w.write("var1", var1)
+# w.write("var2", var2)
 # w.end_step()
 
-# # Clean up
+# # 5. Always close the writer at the end
 # w.close()
-# #

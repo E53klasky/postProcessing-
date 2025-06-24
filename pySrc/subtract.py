@@ -105,7 +105,8 @@ def main():
                 gt_j = int(j * skip_factor)
                 gt_value = ground_truth[0, gt_i, gt_j]
                 e_value = low_res[0, i, j]
-                diff[0, i, j] = np.abs(gt_value - e_value)
+                # can make it abs if needed
+                diff[0, i, j] = (gt_value - e_value)
 
         if args.tolerance is not None:
             diff[diff <= float(args.tolerance)] = 0.0
@@ -113,7 +114,7 @@ def main():
             w.set_write_vars(diff, var)
 
         var_not_defined = False
-        w.write()
+        w.write(var, diff)
 
         w.end_step()
         r_low.end_step()
