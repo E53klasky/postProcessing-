@@ -186,11 +186,12 @@ def main():
     not_defined = True
     while True:
         status = reader.begin_step()
-        wrigher.begin_step()
+       
 
         if status != adios2.bindings.StepStatus.OK:
             break
-        
+        wrigher.begin_step()
+         
         reader.set_read_vars(var_names)
         if (reader.vars_Out.get(var_names[0]) is None
             or reader.vars_Out.get(var_names[1]) is None

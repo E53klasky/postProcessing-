@@ -85,7 +85,7 @@ def main():
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
-        w.begin_step()
+        
 
       
 
@@ -94,7 +94,7 @@ def main():
             or bindings.StepStatus.OK != status_high
         ):
             break
-        
+        w.begin_step()
         r_low.set_read_vars([var])
         r_high.set_read_vars([var])
         

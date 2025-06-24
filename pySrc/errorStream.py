@@ -1,4 +1,4 @@
-import adios2
+from adios2 import Adios, Stream, bindings
 from frechetdist import frdist
 import os
 import argparse
@@ -165,8 +165,7 @@ def main():
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
 
-
-        if (status_low != adios2.bindings.StepStatus.OK or status_high != adios2.bindings.StepStatus.OK):
+        if (bindings.StepStatus.OK  != status_low or bindings.StepStatus.OK != status_high):
             break
         
                 
@@ -187,7 +186,7 @@ def main():
 
         segment_uncompressed_x = r_high.read_step(args.var_x)
         segment_uncompressed_y = r_high.read_step(args.var_y)
-        segment_uncompressed_offset = r_high.read_step(args.var_offset)  # ✅ fix here
+        segment_uncompressed_offset = r_high.read_step(args.var_offset)  
 
         segment_compressed_pairs = np.column_stack(
             (segment_compressed_x, segment_compressed_y)
@@ -209,7 +208,7 @@ def main():
 
     r_low.close()
     r_high.close()
-    print("Finished Error finished.")
+    print("Finished ErrorStream.py successfully.")
 
 
 if __name__ == "__main__":
