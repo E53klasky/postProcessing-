@@ -44,7 +44,7 @@ class Writer:
 
 
 
-# # === ✅ How to Use the Writer Class ===
+# === ✅ How to Use the Writer Class ===
 
 # # 1. Prepare your data
 # var1 = np.arange(10, dtype=np.float64)
@@ -53,13 +53,16 @@ class Writer:
 # # 2. Create a Writer object
 # # Arguments: IO_Name, output file name (optional), XML config file (optional)
 # w = Writer(IO_Name="example_IO", bp_file="example.bp", xml=None)
+#  start step
+# w.begin_step()
 
 # # 3. Define variables you want to write (must be done before writing)
+# this is onely done once per variable
 # w.set_write_vars(var1, "var1")
 # w.set_write_vars(var2, "var2")
 
 # # 4. Write a single timestep (you can loop this for multiple steps)
-# w.begin_step()
+
 # w.write("var1", var1)
 # w.write("var2", var2)
 # w.end_step()

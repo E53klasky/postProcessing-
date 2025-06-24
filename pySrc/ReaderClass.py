@@ -21,19 +21,22 @@ class Reader:
         self.current_step = -1
         self.vars_Out = {}
 
-    def set_read_vars(self, vars):
-        for var in vars:
-            adios_var = self.Read_IO.inquire_variable(var)
-            if adios_var is None:
-                print(f"Variable '{var}' not found in the IO '{self.IO_Name}'.")
-
-            self.vars_Out[var] = adios_var
 
     def begin_step(self):
         status = self.Adios_reader.begin_step()
         self.current_step = self.Adios_reader.current_step()
         print(f"Reading step: {self.current_step}")
         return status
+    
+    def set_read_vars(self, vars):
+        for var in vars:
+            adios_var = self.Read_IO.inquire_variable(var)
+        
+            if adios_var is None:
+                raise ValueError(f"Variable '{var}' not found in the ADIOS file.")
+            else:
+                self.vars_Out[var] = adios_var
+
 
     def read_step(self, var_name):
         adios_var = self.vars_Out.get(var_name)
@@ -48,11 +51,11 @@ class Reader:
         self.Adios_reader.close()
         print("Reader closed successfully.")
 
-
+# === ✅ How to Use the Reader Class ===
 # r = Reader("example.bp", "example_IO", "example.xml")
-# r.set_read_vars(["var1", "var2"])
 # while True:
 #     status = r.begin_step()
+#     r.set_read_vars(["var1", "var2"])
 #     if not status or adios2.bindings.StepStatus.OK != status:
 #         break
 #     data1 = r.read_step("var1")
