@@ -95,7 +95,7 @@ Install these after system dependencies are properly configured:
 ### Required Packages
 
 ```bash
-pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0
+pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0 25.1.0>= black
 ```
 
 ### Package Details
@@ -116,6 +116,11 @@ pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0
 - Used in: divCurl.py and compression.py for MPI communication
 - Must be compatible with your system MPI installation
 
+**black** (>= 25.1.0)
+- Purpose: Formatting Python codes
+- Used in: a shell script that formats all python codes in the pySrc directory
+
+
 ### Virtual Environment Setup (Recommended)
 
 ```bash
@@ -129,7 +134,7 @@ venv\Scripts\activate     # Windows
 
 # Install Python packages
 pip install --upgrade pip
-pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0
+pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0 25.1.0>=black
 ```
 
 ### Testing Your Installation
