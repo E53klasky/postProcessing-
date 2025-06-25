@@ -6,7 +6,7 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 
 
-# make this in parallel clean up the imports and make it in parallel
+# clean up and make it parallel 
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
@@ -50,14 +50,45 @@ def parse_arguments():
     parser.add_argument(
         "--skip",
         type=int,
-        default=0,
+        default=1,
         help="Number of points to skip in the high-resolution file",
     )
-    import sys
 
-    print(sys.argv)
     return parser.parse_args()
+    
 
+    
+def subtraction_2D(low_res, ground_truth, skip_factor, tolerance):
+    diff = np.zeros_like(low_res)
+    for i in range(low_res.shape[0]):
+        for j in range(low_res.shape[1]):
+            gt_i = int(i * skip_factor)
+            gt_j = int(j * skip_factor)
+            gt_value = ground_truth[gt_i, gt_j]
+            e_value = low_res[i, j]
+            diff[i, j] = abs(gt_value - e_value)
+
+    if tolerance is not None:
+        diff[diff <= float(tolerance)] = 0.0
+    
+    return diff
+
+def subtraction_3D(low_res, ground_truth, skip_factor, tolerance):
+    diff = np.zeros_like(low_res)
+    for i in range(low_res.shape[0]):
+        for j in range(low_res.shape[1]):
+            for k in range(low_res.shape[2]):
+                gt_i = int(i * skip_factor)
+                gt_j = int(j * skip_factor)
+                gt_k = int(k * skip_factor)
+                gt_value = ground_truth[gt_i, gt_j, gt_k]
+                e_value = low_res[i, j, k]
+                diff[i, j, k] = abs(gt_value - e_value)
+    if tolerance is not None:
+        diff[diff <= float(tolerance)] = 0.0
+    
+    return diff
+    
 
 def main():
     install()
@@ -84,7 +115,7 @@ def main():
 
     var = args.var
     print(f"Variable to subtract: {var}")
-    var_not_defined = True
+    
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
@@ -105,22 +136,14 @@ def main():
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
-        diff = np.zeros_like(low_res)
-
-        for i in range(low_res.shape[1]):
-            for j in range(low_res.shape[2]):
-                gt_i = int(i * skip_factor)
-                gt_j = int(j * skip_factor)
-                gt_value = ground_truth[0, gt_i, gt_j]
-                e_value = low_res[0, i, j]
-                diff[0, i, j] = abs(gt_value - e_value)
-
-        if args.tolerance is not None:
-            diff[diff <= float(args.tolerance)] = 0.0
-        # if var_not_defined:
-        #     w.set_write_vars(diff, var)
-
-        var_not_defined = False
+        
+        if low_res.shape == 3 and low_res.shape[0] == 1:
+            low_res = np.squeeze(low_res)
+            ground_truth = np.squeeze(ground_truth)
+            diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance)
+        else:
+            diff = subtraction_3D(low_res, ground_truth, skip_factor, args.tolerance)
+            
         w.write(var, diff)
 
         w.end_step()
