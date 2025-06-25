@@ -6,7 +6,7 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 
 
-# clean up and make it parallel 
+# clean up and make it parallel
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
@@ -55,9 +55,8 @@ def parse_arguments():
     )
 
     return parser.parse_args()
-    
 
-    
+
 def subtraction_2D(low_res, ground_truth, skip_factor, tolerance):
     diff = np.zeros_like(low_res)
     for i in range(low_res.shape[0]):
@@ -70,8 +69,9 @@ def subtraction_2D(low_res, ground_truth, skip_factor, tolerance):
 
     if tolerance is not None:
         diff[diff <= float(tolerance)] = 0.0
-    
+
     return diff
+
 
 def subtraction_3D(low_res, ground_truth, skip_factor, tolerance):
     diff = np.zeros_like(low_res)
@@ -86,9 +86,9 @@ def subtraction_3D(low_res, ground_truth, skip_factor, tolerance):
                 diff[i, j, k] = abs(gt_value - e_value)
     if tolerance is not None:
         diff[diff <= float(tolerance)] = 0.0
-    
+
     return diff
-    
+
 
 def main():
     install()
@@ -115,7 +115,7 @@ def main():
 
     var = args.var
     print(f"Variable to subtract: {var}")
-    
+
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
@@ -136,14 +136,13 @@ def main():
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
-        
         if low_res.shape == 3 and low_res.shape[0] == 1:
             low_res = np.squeeze(low_res)
             ground_truth = np.squeeze(ground_truth)
             diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance)
         else:
             diff = subtraction_3D(low_res, ground_truth, skip_factor, args.tolerance)
-            
+
         w.write(var, diff)
 
         w.end_step()

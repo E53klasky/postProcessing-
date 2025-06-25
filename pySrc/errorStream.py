@@ -8,7 +8,7 @@ from matplotlib.collections import LineCollection
 from rich.traceback import install
 from ReaderClass import Reader
 
-
+# make it work with the offsets for mutle streamlines
 # make cleaner/DONE
 def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
     errors = np.linalg.norm(segment_compressed - segment_uncompressed, axis=1)
@@ -48,9 +48,7 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     streamline_path = os.path.join(output_dir, streamline_filename)
     print(f"Saving streamline image to: {streamline_path}")
 
-    fig1.savefig(
-        streamline_path, dpi=300, bbox_inches="tight"
-    )
+    fig1.savefig(streamline_path, dpi=300, bbox_inches="tight")
     plt.close(fig1)
 
     fig2 = plt.figure(figsize=(10, 8))
@@ -68,9 +66,7 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     errorplot_path = os.path.join(output_dir, errorplot_filename)
     print(f"Saving error plot image to: {errorplot_path}")
 
-    plt.savefig(
-        errorplot_path, dpi=300, bbox_inches="tight"
-    )
+    plt.savefig(errorplot_path, dpi=300, bbox_inches="tight")
     plt.close(fig2)
 
     fig3, ax3 = plt.subplots(figsize=(10, 8))
@@ -102,7 +98,9 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     streamline_comparison_filename = "streamline_comparison.png"
     if step is not None:
         streamline_comparison_filename = f"streamline_comparison_step_{step:04d}.png"
-    streamline_comparison_path = os.path.join(output_dir, streamline_comparison_filename)
+    streamline_comparison_path = os.path.join(
+        output_dir, streamline_comparison_filename
+    )
     print(f"Saving streamline comparison image to: {streamline_comparison_path}")
 
     fig3.savefig(
