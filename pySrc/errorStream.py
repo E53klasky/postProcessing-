@@ -9,8 +9,8 @@ from rich.traceback import install
 from ReaderClass import Reader
 
 
+# make cleaner/DONE
 def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
-    install()
     errors = np.linalg.norm(segment_compressed - segment_uncompressed, axis=1)
 
     points = segment_compressed.reshape(-1, 1, 2)
@@ -45,9 +45,11 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
         streamline_filename = (
             f"highlighted_Lower_Resolution_streamline_step_{step:04d}.png"
         )
+    streamline_path = os.path.join(output_dir, streamline_filename)
+    print(f"Saving streamline image to: {streamline_path}")
 
     fig1.savefig(
-        os.path.join(output_dir, streamline_filename), dpi=300, bbox_inches="tight"
+        streamline_path, dpi=300, bbox_inches="tight"
     )
     plt.close(fig1)
 
@@ -63,9 +65,11 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     errorplot_filename = "distance_error_plot.png"
     if step is not None:
         errorplot_filename = f"distance_error_plot_step_{step:04d}.png"
+    errorplot_path = os.path.join(output_dir, errorplot_filename)
+    print(f"Saving error plot image to: {errorplot_path}")
 
     plt.savefig(
-        os.path.join(output_dir, errorplot_filename), dpi=300, bbox_inches="tight"
+        errorplot_path, dpi=300, bbox_inches="tight"
     )
     plt.close(fig2)
 
@@ -98,9 +102,11 @@ def RK_visualization(segment_compressed, segment_uncompressed, distance, step=No
     streamline_comparison_filename = "streamline_comparison.png"
     if step is not None:
         streamline_comparison_filename = f"streamline_comparison_step_{step:04d}.png"
+    streamline_comparison_path = os.path.join(output_dir, streamline_comparison_filename)
+    print(f"Saving streamline comparison image to: {streamline_comparison_path}")
 
     fig3.savefig(
-        os.path.join(output_dir, streamline_comparison_filename),
+        streamline_comparison_path,
         dpi=300,
         bbox_inches="tight",
     )
@@ -156,7 +162,6 @@ def parse_arguments():
 
 
 def main():
-    install()
     args = parse_arguments()
     r_low = Reader(args.IO_Name1, args.file1, xml=args.xml)
     r_high = Reader(args.IO_Name2, args.file2, xml=args.xml)
@@ -165,13 +170,15 @@ def main():
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
 
-        if (bindings.StepStatus.OK  != status_low or bindings.StepStatus.OK != status_high):
+        if (
+            bindings.StepStatus.OK != status_low
+            or bindings.StepStatus.OK != status_high
+        ):
             break
-        
-                
+
         r_high.set_read_vars([args.var_x, args.var_y, args.var_offset])
         r_low.set_read_vars([args.var_x, args.var_y, args.var_offset])
-        
+
         if (
             r_low.vars_Out.get(args.var_x) is None
             or r_low.vars_Out.get(args.var_y) is None
@@ -186,7 +193,7 @@ def main():
 
         segment_uncompressed_x = r_high.read_step(args.var_x)
         segment_uncompressed_y = r_high.read_step(args.var_y)
-        segment_uncompressed_offset = r_high.read_step(args.var_offset)  
+        segment_uncompressed_offset = r_high.read_step(args.var_offset)
 
         segment_compressed_pairs = np.column_stack(
             (segment_compressed_x, segment_compressed_y)
@@ -208,8 +215,9 @@ def main():
 
     r_low.close()
     r_high.close()
-    print("Finished ErrorStream.py successfully.")
+    print("Finished ErrorStream.py successfully!")
 
 
 if __name__ == "__main__":
     main()
+    install()

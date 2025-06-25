@@ -6,6 +6,7 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 
 
+# make this in parallel clean up the imports and make it in parallel
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
@@ -52,7 +53,9 @@ def parse_arguments():
         default=0,
         help="Number of points to skip in the high-resolution file",
     )
+    import sys
 
+    print(sys.argv)
     return parser.parse_args()
 
 
@@ -85,9 +88,6 @@ def main():
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
-        
-
-      
 
         if (
             bindings.StepStatus.OK != status_low
@@ -97,32 +97,28 @@ def main():
         w.begin_step()
         r_low.set_read_vars([var])
         r_high.set_read_vars([var])
-        
-        if (
-            r_low.vars_Out.get(var) is None 
-            or r_high.vars_Out.get(var) is None
-        ):
+
+        if r_low.vars_Out.get(var) is None or r_high.vars_Out.get(var) is None:
             print("Variables not found in the low resolution stream.")
             break
 
-        
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
         diff = np.zeros_like(low_res)
+
         for i in range(low_res.shape[1]):
             for j in range(low_res.shape[2]):
                 gt_i = int(i * skip_factor)
                 gt_j = int(j * skip_factor)
                 gt_value = ground_truth[0, gt_i, gt_j]
                 e_value = low_res[0, i, j]
-                # can make it abs if needed
-                diff[0, i, j] = gt_value - e_value
+                diff[0, i, j] = abs(gt_value - e_value)
 
         if args.tolerance is not None:
             diff[diff <= float(args.tolerance)] = 0.0
-        if var_not_defined:
-            w.set_write_vars(diff, var)
+        # if var_not_defined:
+        #     w.set_write_vars(diff, var)
 
         var_not_defined = False
         w.write(var, diff)

@@ -9,6 +9,7 @@ from rich.traceback import install
 import sys
 
 
+# rewrite it only in serial and using the class
 def parser_arguments():
     install()
     parser = argparse.ArgumentParser(

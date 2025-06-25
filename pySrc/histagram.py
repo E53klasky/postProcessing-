@@ -8,6 +8,8 @@ from mpi4py import MPI
 from rich.traceback import install
 
 
+# will not do till i get classes working in parallel
+# rewrite it to use the classes and work in parallel
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(

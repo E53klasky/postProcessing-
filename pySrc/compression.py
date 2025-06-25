@@ -4,6 +4,7 @@ from adios2 import Adios, Stream
 from mpi4py import MPI
 
 
+# write out the compression ratio and make it use the clsses
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate streamline plots from ADIOS2 BP5 files"

@@ -8,6 +8,7 @@ import WrighterClass
 import re
 
 
+# clean up code and maybe make it parallel but good
 def rk4_streamline_from_grid(
     x0, y0, vx, vy, max_len=3.0, dt=0.01, max_steps=1000, xlim=None, ylim=None
 ):
@@ -159,7 +160,8 @@ def parse_arguments():
         required=False,
         help="Output file name default: segments.bp (optional)",
     )
-    # take in dt, lenght, num steps as  optional
+    # -------------------------------------------------------------------------------------------
+    # take in dt, lenght, num steps as  optional for later -----------
 
     return parser.parse_args()
 
@@ -186,14 +188,14 @@ def main():
     not_defined = True
     while True:
         status = reader.begin_step()
-       
 
         if status != adios2.bindings.StepStatus.OK:
             break
         wrigher.begin_step()
-         
+
         reader.set_read_vars(var_names)
-        if (reader.vars_Out.get(var_names[0]) is None
+        if (
+            reader.vars_Out.get(var_names[0]) is None
             or reader.vars_Out.get(var_names[1]) is None
         ):
             print("Variables not found in the stream.")
@@ -203,8 +205,7 @@ def main():
             data.append(reader.read_step(var_names[i]))
             if len(data[i].shape) == 3 and data[i].shape[0] == 1:
                 data[i] = np.squeeze(data[i])
-    
-        
+
         coords_x, coords_y, offsets = rk4_streamline_from_grid(
             x_seeds, y_seeds, data[0], data[1], max_len=1000
         )
@@ -217,11 +218,6 @@ def main():
         coords_y = coords_y.flatten()
         offsets = offsets.flatten()
 
-        if not_defined:
-            wrigher.set_write_vars(coords_x, "coords_x")
-            wrigher.set_write_vars(coords_y, "coords_y")
-            wrigher.set_write_vars(offsets, "offsets")
-            not_defined = False
         wrigher.write("coords_x", coords_x)
         wrigher.write("coords_y", coords_y)
         wrigher.write("offsets", offsets)
@@ -230,7 +226,7 @@ def main():
 
     reader.close()
     wrigher.close()
-    print(f"All streamline segments saved to {output_file}!")
+    print(f"All streamline segments saved to ./{output_file}!")
 
 
 if __name__ == "__main__":

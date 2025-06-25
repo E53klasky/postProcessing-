@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from rich.traceback import install
 
 
+# rewrite it with classes and make it parallel
 def RMSE(GT, E, step, var_NAME="Variable", skip_factor=2):
     install()
     error = np.zeros_like(E)

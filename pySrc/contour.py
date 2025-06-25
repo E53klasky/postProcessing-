@@ -2,18 +2,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import argparse
-from adios2 import Adios, Stream
-from mpi4py import MPI
+from adios2 import bindings
 import os
 from rich.traceback import install
+from ReaderClass import Reader
 
 
+# make cleaner/DONE
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description="Making contour plots")
 
     parser.add_argument(
-        "input_file", type=str, help="Path to the input ADIOS2 BP file (REQUIRED)"
+        "--bpfile1", "-f1", help="Lower-resolution input BP file", required=True
+    )
+
+    parser.add_argument(
+        "--Declare_Read_Io1",
+        "-d1",
+        help="IO name for lower-resolution input",
+        required=True,
     )
 
     parser.add_argument(
@@ -32,140 +40,52 @@ def parse_arguments():
         help="Variables to plot, separated by commas (REQUIRED)",
     )
 
-    parser.add_argument(
-        "--mode",
-        "-m",
-        type=str,
-        choices=["2d", "3d"],
-        default="2d",
-        help="2D or 3D mode, default: 2d (optional)",
-    )
-
-    parser.add_argument(
-        "--max_steps",
-        "-n",
-        type=int,
-        help="Maximum number of timesteps to process (REQUIRED)",
-    )
-
-    parser.add_argument(
-        "--slice",
-        "-s",
-        type=int,
-        default=16,
-        help="Slice index for 3D mode default: 16 (optional)",
-    )
-
     return parser.parse_args()
 
 
 def main():
     install()
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-    if rank == 0:
-        print(f"Running with {size} MPI processes")
 
     args = parse_arguments()
 
-    max_steps = args.max_steps
-    input_file = args.input_file
+    bpfile = args.bpfile1
+    declare_read_io = args.Declare_Read_Io1
     adios2_xml = args.xml
     vars = args.vars.split(",")
-    slice = args.slice
 
-    mode = args.mode
-    if rank == 0:
-        print(f"Input file: {input_file}")
-        print(f"ADIOS2 XML file: {adios2_xml}")
-        print(f"Variables to plot: {vars}")
-        print(f"Mode: {mode}")
+    print(f"Input file: {bpfile}")
+    print(f"ADIOS2 XML file: {adios2_xml}")
+    print(f"Variables to plot: {vars}")
 
-    if max_steps <= 0:
-        print("Error: max_steps must be a non-negative integer.")
-        sys.exit(1)
+    r = Reader(declare_read_io, bpfile, adios2_xml)
+    while True:
+        status = r.begin_step()
+        r.set_read_vars(vars)
 
-    if adios2_xml is None:
-        adios_obj = Adios(comm)
-    else:
-        adios_obj = Adios(adios2_xml, comm)
-    Rio = adios_obj.declare_io("ReadIO")
-    print(f"Opening input file: {input_file}")
+        if status != bindings.StepStatus.OK:
+            print("No more steps to read or an error occurred.")
+            break
 
-    with Stream(Rio, input_file, "r") as s:
-        for steps in s:
-            step = s.current_step()
-            status = s.begin_step()
-            print(f"Processing step {s.current_step()}")
+        for var in vars:
+            data = r.read_step(var)
+            if data is None:
+                print(f"Variable '{var}' not found in the stream.")
+                continue
 
-            data = {}
-            for var in vars:
-                if var in s.available_variables():
-                    data[var] = s.read(var)
-                else:
-                    print(f"Variable {var} not found in the input file.")
-
-            if mode == "2d":
-                plt.figure()
-                for var, values in data.items():
-                    output_dir = "../RESULTS"
-                    os.makedirs(output_dir, exist_ok=True)
-                    plt.contourf(np.squeeze(values), cmap="inferno", levels=50)
-                    plt.title(var + f" at step {step}")
-                    plt.colorbar()
-                    plt.savefig(os.path.join(output_dir, f"{var}_step_{step}.png"))
-                    plt.close()
-
-            elif mode == "3d":
-                for var, values in data.items():
-                    output_dir = "../RESULTS"
-                    os.makedirs(output_dir, exist_ok=True)
-                    dims = values.shape
-                    axes = [0, 1, 2]
-
-                    x_dim, y_dim, z_dim = axes
-
-                    x = np.arange(dims[x_dim])
-                    y = np.arange(dims[y_dim])
-                    X, Y = np.meshgrid(x, y)
-
-                    z_index = slice
-                    if z_dim == 0:
-                        values_2d = values[z_index, :, :]
-                    elif z_dim == 1:
-                        values_2d = values[:, z_index, :]
-                    else:
-                        values_2d = values[:, :, z_index]
-
-                    if values_2d.shape != X.shape:
-                        values_2d = values_2d.T
-
-                    fig = plt.figure()
-                    ax = fig.add_subplot(111, projection="3d")
-
-                    surf = ax.plot_surface(
-                        X, Y, values_2d, cmap="inferno", linewidth=0, antialiased=False
-                    )
-
-                    levels = np.linspace(np.min(values_2d), np.max(values_2d), 10)
-                    ax.contour(
-                        X, Y, values_2d, levels=levels, cmap="inferno", linewidths=2
-                    )
-
-                    ax.set_title(f"{var} slice at dim {mode} index {z_index}")
-                    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
-                    plt.savefig(
-                        os.path.join(
-                            output_dir, f"{var}_3d_slice_{mode}_idx{z_index}.png"
-                        )
-                    )
-                    plt.close()
-
-            if not status or s.current_step() >= max_steps - 1:
-                print(f"Reached max_steps = {max_steps}")
-                break
-    print("Images saved to ../RESULTS")
+            plt.figure()
+            output_dir = "../RESULTS"
+            os.makedirs(output_dir, exist_ok=True)
+            plt.contourf(np.squeeze(data), cmap="inferno", levels=50)
+            plt.title(f"{var} at step {r.current_step}")
+            plt.colorbar()
+            plt.savefig(os.path.join(output_dir, f"{var}_step_{r.current_step}.png"))
+            plt.close()
+            print(
+                f"Saved contour plot for {var} at step {r.current_step} to {output_dir} as {var}_step_{r.current_step}.png"
+            )
+        r.end_step()
+    r.close()
+    print("Contour.py plots saved to finshed successfully!")
 
 
 if __name__ == "__main__":

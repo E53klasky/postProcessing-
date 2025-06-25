@@ -7,6 +7,7 @@ Initializes an ADIOS2 IO object with an optional XML configuration and manages d
 """
 
 
+# make it work in parallel
 class Reader:
     def __init__(self, IO_Name, bp_file, xml=None):
         install()

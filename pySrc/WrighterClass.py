@@ -2,6 +2,7 @@ import adios2
 from rich.traceback import install
 
 
+# add parallel
 class Writer:
     def __init__(self, IO_Name, bp_file="data.bp", xml=None):
         install()
@@ -16,22 +17,12 @@ class Writer:
         self.current_step = -1
         self.vars_Out = {}
 
-    def set_write_vars(self, var, name):
-        global_size = var.shape
-        local_size = var.shape
-        start = [0] * len(global_size)
-
-        adios_var = self.Write_IO.define_variable(
-            name, var, global_size, start, local_size
-        )
-        self.vars_Out[name] = (adios_var, var)
-
     def begin_step(self):
         status = self.Adios_writer.begin_step()
         self.current_step = self.Adios_writer.current_step()
         print(f"Writing step: {self.current_step}")
 
-    def write(self, name, data):
+    def write(self, name, data, offset=0):
         self.Adios_writer.write(name, data)
 
     def end_step(self):
@@ -55,16 +46,12 @@ class Writer:
 #  start step
 # w.begin_step()
 
-# # 3. Define variables you want to write (must be done before writing)
-# this is onely done once per variable
-# w.set_write_vars(var1, "var1")
-# w.set_write_vars(var2, "var2")
 
-# # 4. Write a single timestep (you can loop this for multiple steps)
+# # 3. Write a single timestep (you can loop this for multiple steps)
 
 # w.write("var1", var1)
 # w.write("var2", var2)
 # w.end_step()
 
-# # 5. Always close the writer at the end
+# # 4. Always close the writer at the end
 # w.close()
