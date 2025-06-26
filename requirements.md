@@ -1,227 +1,179 @@
-# Requirements for xcompact3d Post-Processing Tools
+# Requirements and Installation Guide for Xcompact3d Post-Processing Tools
 
 ## System Dependencies
 
-These must be installed at the system level before installing Python dependencies.
+These must be installed at the system level before Python dependencies.
 
-### 1. MPI (Message Passing Interface)
+---
 
-**Required for**: Parallel execution of divCurl.py and future parallel implementations
+### 1. Protocol Buffers (protobuf)
 
-**Installation Options:**
+**Purpose:** Used as a dependency for MGARD and other components.
 
-**MPICH** (Recommended)
+- **Recommended version:** 3.2.0 or higher (3.6+ preferred)
+- **Website:** [https://developers.google.com/protocol-buffers](https://developers.google.com/protocol-buffers)
+- **GitHub:** [https://github.com/protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf)
 
-- Website: https://www.mpich.org/downloads/
-- Ubuntu/Debian: `sudo apt-get install mpich libmpich-dev`
-- CentOS/RHEL: `sudo yum install mpich mpich-devel` or `sudo dnf install mpich mpich-devel`
-- macOS: `brew install mpich`
-
-**OpenMPI** (Alternative)
-
-- Website: https://www.open-mpi.org/software/ompi/
-- Ubuntu/Debian: `sudo apt-get install openmpi-bin openmpi-common libopenmpi-dev`
-- CentOS/RHEL: `sudo yum install openmpi openmpi-devel` or `sudo dnf install openmpi openmpi-devel`
-- macOS: `brew install open-mpi`
-
-### 2. ADIOS2
-
-**Required for**: Reading and writing .bp simulation files in all scripts
-
-**Installation:**
-
-- Website: https://adios2.readthedocs.io/en/latest/setting_up/setting_up.html
-- Documentation: https://adios2.readthedocs.io/
-
-**Important Notes:**
-
-- Must be compiled with Python bindings enabled
-- Version 2.8+ recommended
-- For Python bindings: ensure `-DADIOS2_USE_Python=ON -DADIOS2_USE_MPI=ON -DADIOS2_USE_MGARD=ON` during compilation
-
-**Quick Install (if available via package manager):**
-
-- Ubuntu/Debian: `sudo apt-get install adios2-tools libadios2-dev python3-adios2`
-- Conda: `conda install -c conda-forge adios2`
-
-### 3. Protocol Buffers (protobuf)
-
-**Required for**: MGARD dependency
-**Version**: >= 3.2.0 (3.6+ recommended)
-
-**Installation:**
-
-- Website: https://developers.google.com/protocol-buffers
-- GitHub: https://github.com/protocolbuffers/protobuf
-
-**Install via package manager:**
-
-- Ubuntu/Debian: `sudo apt-get install protobuf-compiler libprotobuf-dev`
-- CentOS/RHEL: `sudo dnf install protobuf-compiler protobuf-devel`
-- macOS: `brew install protobuf`
-
-### 4. MGARD
-
-**Required for**: Compression functionality in compression.py
-**Dependencies**: Requires protobuf >= 3.2.0
-
-**Installation:**
-
-- GitHub: https://github.com/CODARcode/MGARD
-- Documentation: https://mgard.readthedocs.io/
-
-**Build from source:**
+**Example build:**
 
 ```bash
-# Ensure protobuf is installed first
+git clone https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+git checkout v3.21.12
+git submodule update --init --recursive
+./autogen.sh
+./configure --prefix=/your/install/path
+make -j
+make install
+Make sure protoc is in your PATH and verify with:
+
+bash
+Copy
+Edit
+protoc --version
+2. MPI (Message Passing Interface)
+Purpose: Provides parallel execution support required by MPI-enabled components.
+
+Options: MPICH, OpenMPI
+
+Installation: Use your system package manager or build from source.
+
+Example building MPICH from source:
+
+bash
+Copy
+Edit
+wget https://download.mpich.org/mpich/stable/mpich-4.1.1.tar.gz
+tar -xzf mpich-4.1.1.tar.gz
+cd mpich-4.1.1
+./configure --prefix=/your/install/path
+make -j
+make install
+Verify installation:
+
+bash
+Copy
+Edit
+mpirun --version
+3. MGARD
+Purpose: Compression backend required for compression functionality.
+
+GitHub: https://github.com/CODARcode/MGARD
+
+Dependencies: Requires protobuf installed first.
+
+Example build:
+
+bash
+Copy
+Edit
 git clone https://github.com/CODARcode/MGARD.git
 cd MGARD
 mkdir build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install
-make -j4
+cmake .. -DCMAKE_INSTALL_PREFIX=/your/install/path
+make -j
 make install
-```
+4. ADIOS2
+Purpose: Reading and writing .bp files used in all scripts.
 
-**Note**: If protobuf is installed in a non-standard location, you may need to specify:
+Docs: https://adios2.readthedocs.io/
 
-```bash
-cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install -DProtobufT=/path/to/protobuf
-```
+GitHub: https://github.com/ornladios/ADIOS2
 
-## Python Dependencies
+Important: Build with Python bindings, MPI, and MGARD enabled.
 
-Install these after system dependencies are properly configured:
+Example build:
 
-### Required Packages
+bash
+Copy
+Edit
+git clone https://github.com/ornladios/ADIOS2.git
+cd ADIOS2
+git checkout v2.8.0
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DADIOS2_USE_Python=ON \
+  -DADIOS2_USE_MPI=ON \
+  -DADIOS2_USE_MGARD=ON \
+  -DCMAKE_INSTALL_PREFIX=/your/install/path
+make -j
+make install
+Verify python import:
 
-```bash
-pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0 25.1.0>= black
-```
+bash
+Copy
+Edit
+python3 -c "import adios2; print(adios2.__version__)"
+5. 2decomp-fft
+Purpose: Library required by Xcompact3d for parallel 2D domain decomposition.
 
-### Package Details
+GitHub: https://github.com/cppla/2decomp_fft
 
-**numpy** (>=1.20.0)
+Example build:
 
-- Purpose: Numerical computations, gradient calculations
-- Used in: All scripts for array operations and mathematical functions
+bash
+Copy
+Edit
+git clone https://github.com/cppla/2decomp_fft.git
+cd 2decomp_fft
+mkdir build && cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=/your/install/path
+make -j
+make install
+6. Xcompact3d
+Purpose: Main post-processing tool to build after dependencies.
 
-**matplotlib** (>=3.5.0)
+GitHub: https://github.com/cppla/Xcompact3d
 
-- Purpose: Streamline plotting and visualization
-- Used in: streamlines.py for generating PNG output files
+Example build:
 
-**mpi4py** (>=3.1.0)
+bash
+Copy
+Edit
+git clone https://github.com/cppla/Xcompact3d.git
+cd Xcompact3d
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="/path/to/adios2;/path/to/2decomp_fft" \
+  -DCMAKE_INSTALL_PREFIX=/your/install/path \
+  -DIO_BACKEND=adios2
+make -j
+make install
+Python Dependencies
+After system libraries are installed, install these Python packages:
 
-- Purpose: Python MPI bindings for parallel processing
-- Used in: divCurl.py and compression.py for MPI communication
-- Must be compatible with your system MPI installation
+bash
+Copy
+Edit
+pip install numpy matplotlib mpi4py black
+Set up a virtual environment (recommended):
 
-**black** (>= 25.1.0)
-- Purpose: Formatting Python codes
-- Used in: a shell script that formats all python codes in the pySrc directory
-
-
-### Virtual Environment Setup (Recommended)
-
-```bash
-# Create virtual environment
+bash
+Copy
+Edit
 python3 -m venv venv
-
-# Activate virtual environment
-source venv/bin/activate  # Linux/macOS
-# OR
-venv\Scripts\activate     # Windows
-
-# Install Python packages
+source venv/bin/activate
 pip install --upgrade pip
-pip install numpy>=1.20.0 matplotlib>=3.5.0 mpi4py>=3.1.0 25.1.0>=black
-```
+pip install numpy matplotlib mpi4py black
+Testing Your Setup
+Protobuf:
 
-### Testing Your Installation
+bash
+Copy
+Edit
+protoc --version
+MPI + mpi4py:
 
-**Test protobuf:**
-
-```bash
-protoc --version  # Should show version >= 3.2.0
-```
-
-**Test MPI + mpi4py:**
-
-```bash
+bash
+Copy
+Edit
 mpirun -np 2 python3 -c "from mpi4py import MPI; print(f'Rank {MPI.COMM_WORLD.Get_rank()} of {MPI.COMM_WORLD.Get_size()}')"
+ADIOS2 Python binding:
+
+bash
+Copy
+Edit
+python3 -c "import adios2; print(adios2.__version__)"
 ```
-
-**Test ADIOS2:**
-
-```bash
-python3 -c "import adios2; print('ADIOS2 version:', adios2.__version__)"
-```
-
-**Test other packages:**
-
-```bash
-python3 -c "import numpy, matplotlib; print('NumPy:', numpy.__version__, 'Matplotlib:', matplotlib.__version__)"
-```
-
-## Platform-Specific Notes
-
-### Linux (Ubuntu/Debian)
-
-```bash
-# Install system dependencies
-sudo apt-get update
-sudo apt-get install mpich libmpich-dev adios2-tools libadios2-dev python3-adios2 protobuf-compiler libprotobuf-dev
-
-# Install Python dependencies
-pip install numpy matplotlib mpi4py rich scipy frechetdist
-```
-
-### Linux (CentOS/RHEL/Rocky)
-
-```bash
-# Install system dependencies
-sudo dnf install mpich mpich-devel protobuf-compiler protobuf-devel
-# ADIOS2 may need to be built from source
-
-# Install Python dependencies
-pip install numpy matplotlib mpi4py rich scipy frechetdist
-```
-
-### macOS
-
-```bash
-# Install system dependencies
-brew install mpich protobuf
-# ADIOS2 and MGARD likely need to be built from source
-
-# Install Python dependencies
-pip install numpy matplotlib mpi4py rich scipy
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**mpi4py compilation errors:**
-
-- Ensure MPI is properly installed and in PATH
-- Try: `env MPICC=/path/to/mpicc pip install mpi4py`
-
-**ADIOS2 import errors:**
-
-- Verify ADIOS2 Python bindings are installed
-- Check LD_LIBRARY_PATH includes ADIOS2 libraries
-- Try: `export PYTHONPATH=/path/to/adios2/python/lib:$PYTHONPATH`
-
-**Missing MGARD/protobuf errors:**
-
-- Install protobuf >= 3.2.0 before building MGARD
-- MGARD must be compiled and installed separately
-- Ensure MGARD libraries are in LD_LIBRARY_PATH
-- Check protobuf version: `protoc --version`
-
-### Version Compatibility
-
-- Python 3.7+ required
-- Compatible MPI implementation with mpi4py
-- ADIOS2 2.8+ recommended for best compatibility
