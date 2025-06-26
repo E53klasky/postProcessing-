@@ -1,5 +1,5 @@
 from adios2 import Adios, Stream, bindings
-from frechetdist import frdist
+from frechetdist import frdist 
 import os
 import argparse
 import numpy as np
@@ -153,6 +153,7 @@ def parse_arguments():
     parser.add_argument(
         "--var_y", type=str, required=True, help="Variable name for y coordinates"
     )
+    # rember to find out how to use the offsets
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )

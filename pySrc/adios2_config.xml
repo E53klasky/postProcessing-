@@ -114,29 +114,29 @@ pp 19: 0.04067843018403145
 
     <variable name="ux">
       <operation type="mgard">
-        <parameter key="accuracy" value="0.09396374631781942"/>
+        <parameter key="accuracy" value="0.001"/>
       </operation>
     </variable>
 
     <variable name="uy">
       <operation type="mgard">
-        <parameter key="accuracy" value="0.09874235568938731"/>
+        <parameter key="accuracy" value="0.001"/>
       </operation>
     </variable>
 
 
     <variable name="pp">
       <operation type="mgard">
-        <parameter key="accuracy" value="0.04067843018403145"/>
+        <parameter key="accuracy" value="0.001"/>
       </operation>
     </variable>
 
     <variable name="phi01">
       <operation type="mgard">
-        <parameter key="accuracy" value="0.3755220806144471"/>
+        <parameter key="accuracy" value="0.001"/>
       </operation>
     </variable>
 
 
-  </io>Add commentMore actions
+  </io>
 </adios-config>
