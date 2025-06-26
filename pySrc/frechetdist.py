@@ -3,7 +3,8 @@
 
 import numpy as np
 
-__all__ = ['frdist']
+__all__ = ["frdist"]
+
 
 def compute_frechet(p, q):
     n, m = len(p), len(q)
@@ -19,10 +20,7 @@ def compute_frechet(p, q):
             elif j == 0:
                 ca[i, j] = max(ca[i - 1, j], d)
             else:
-                ca[i, j] = max(
-                    min(ca[i - 1, j], ca[i - 1, j - 1], ca[i, j - 1]),
-                    d
-                )
+                ca[i, j] = max(min(ca[i - 1, j], ca[i - 1, j - 1], ca[i, j - 1]), d)
     return ca[n - 1, m - 1]
 
 
@@ -92,12 +90,12 @@ def frdist(p, q):
     len_q = len(q)
 
     if len_p == 0 or len_q == 0:
-        raise ValueError('Input curves are empty.')
+        raise ValueError("Input curves are empty.")
 
     if len_p != len_q or len(p[0]) != len(q[0]):
-        raise ValueError('Input curves do not have the same dimensions.')
+        raise ValueError("Input curves do not have the same dimensions.")
 
-    ca = (np.ones((len_p, len_q), dtype=np.float64) * -1)
+    ca = np.ones((len_p, len_q), dtype=np.float64) * -1
 
-    dist = compute_frechet( p, q)
+    dist = compute_frechet(p, q)
     return dist

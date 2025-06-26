@@ -1,5 +1,5 @@
 from adios2 import Adios, Stream, bindings
-from frechetdist import frdist 
+from frechetdist import frdist
 import os
 import argparse
 import numpy as np
