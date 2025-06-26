@@ -1,4 +1,4 @@
-from adios2 import Adios, Stream, bindings
+from adios2 import bindings
 from frechetdist import frdist
 import os
 import argparse
