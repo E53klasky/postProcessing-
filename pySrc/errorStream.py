@@ -8,6 +8,7 @@ from matplotlib.collections import LineCollection
 from rich.traceback import install
 from ReaderClass import Reader
 
+
 # make it work with the offsets for mutle streamlines
 # make cleaner/DONE
 def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
