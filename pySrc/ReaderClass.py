@@ -52,7 +52,7 @@ class Reader:
 
 
 # === ✅ How to Use the Reader Class ===
-# r = Reader("example.bp", "example_IO", "example.xml")
+# r = Reader("example_IO", "example.bp", "example.xml")
 # while True:
 #     status = r.begin_step()
 #     r.set_read_vars(["var1", "var2"])
