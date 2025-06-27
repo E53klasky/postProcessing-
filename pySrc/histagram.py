@@ -7,6 +7,7 @@ from rich.traceback import install
 import ReaderClass
 import WrighterClass
 
+
 # will not do till i get classes working in parallel
 # rewrite it to use the classes and work in parallel
 def parse_arguments():
@@ -57,7 +58,7 @@ def main():
 
     r = ReaderClass.Reader(args.IO_Name1, args.file1, args.xml)
     w = WrighterClass.Writer(args.writeIO, args.output, args.xml)
-    
+
     while True:
         status = r.begin_step()
         step_count = r.current_step
@@ -76,7 +77,7 @@ def main():
             data, bins=args.num_bins, range=(global_min, global_max)
         )
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-        
+
         plt.figure()
         plt.bar(
             bin_centers,
@@ -93,15 +94,15 @@ def main():
         plt.tight_layout()
         plt.savefig(f"../RESULTS/{var}_step_{step_count}_histogram.png")
         plt.close()
-        
+
         r.end_step()
         w.end_step()
-    
+
     r.close()
     w.close()
     print(f"Hisatram outputted successfully amd data is outputed ./{args.output}")
 
+
 if __name__ == "__main__":
     install()
     main()
-   

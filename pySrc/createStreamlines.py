@@ -160,8 +160,23 @@ def parse_arguments():
         required=False,
         help="Output file name default: segments.bp (optional)",
     )
-    # -------------------------------------------------------------------------------------------
-    # take in dt, lenght, num steps as  optional for later -----------
+
+    parser.add_argument(
+        "--step_size",
+        "-dh",
+        required=False,
+        type=np.float64,
+        default=0.001,
+        help="step size for the rk steps dh",
+    )
+    parser.add_argument(
+        "--num_RK_steps",
+        "-step",
+        required=False,
+        type=int,
+        default=4500,
+        help="Number of RK steps to take",
+    )
 
     return parser.parse_args()
 
@@ -176,6 +191,8 @@ def main():
     var_names = [v.strip() for v in args.vars.split(",")]
     x_seeds, y_seeds = parse_seed_points(args.seeds_points)
     output_file = args.output
+    dt = args.step_size
+    num_rk_steps = args.num_RK_steps
     adios_obj = adios2.Adios()
     reader = ReaderClass.Reader(IO_Name=io_name, bp_file=bp_file, xml=xml_file)
 
@@ -207,7 +224,13 @@ def main():
                 data[i] = np.squeeze(data[i])
 
         coords_x, coords_y, offsets = rk4_streamline_from_grid(
-            x_seeds, y_seeds, data[0], data[1], max_len=1000
+            x_seeds,
+            y_seeds,
+            data[0],
+            data[1],
+            max_len=1000,
+            dt=dt,
+            max_steps=num_rk_steps,
         )
 
         coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
