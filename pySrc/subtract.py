@@ -136,7 +136,7 @@ def main():
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
-        if low_res.shape == 3 and low_res.shape[0] == 1:
+        if len(low_res.shape) == 3 and low_res.shape[0] == 1:
             low_res = np.squeeze(low_res)
             ground_truth = np.squeeze(ground_truth)
             diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance)

@@ -2,28 +2,46 @@ import adios2
 from rich.traceback import install
 
 
-# add parallel
+#  test it
 class Writer:
-    def __init__(self, IO_Name, bp_file="data.bp", xml=None):
+    def __init__(self, IO_Name, bp_file="data.bp", xml=None, comm=None):
         install()
+
+        self.comm = comm
         if xml is not None:
-            self.adios_obj = adios2.Adios(xml)
+            self.adios_obj = adios2.Adios(xml, comm=self.comm)
         else:
-            self.adios_obj = adios2.Adios()
+            self.adios_obj = adios2.Adios(comm=self.comm)
         self.IO_Name = IO_Name
         self.Write_IO = self.adios_obj.declare_io(IO_Name)
         self.bp_file = bp_file
-        self.Adios_writer = adios2.Stream(self.Write_IO, self.bp_file, "w")
+        self.Adios_writer = adios2.Stream(
+            self.Write_IO, self.bp_file, "w", comm=self.comm
+        )
         self.current_step = -1
-        self.vars_Out = {}
+        self.numRanks = 1
+        self.rank = 0
+
+        if self.comm:
+            self.numRanks = self.comm.Get_size()
+            self.rank = self.comm.Get_rank()
 
     def begin_step(self):
         status = self.Adios_writer.begin_step()
         self.current_step = self.Adios_writer.current_step()
         print(f"Writing step: {self.current_step}")
 
-    def write(self, name, data, offset=0):
-        self.Adios_writer.write(name, data)
+    def get_var_info(self, data):
+        # fix
+        count = list(data.shape)
+        shape = [x * self.numRanks for x in data.shape]
+        offset = [x * self.rank for x in data.shape]
+
+        return (shape, offset, count)
+
+    def write(self, name, data):
+        shape, offset, count = self.get_var_info(data)
+        self.Adios_writer.write(name, data, shape, offset, count)
 
     def end_step(self):
         self.Adios_writer.end_step()
