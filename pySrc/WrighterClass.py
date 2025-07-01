@@ -2,11 +2,13 @@ import adios2
 from rich.traceback import install
 from mpi4py import MPI
 
-# test wit divCurl, subtract, rmse, and histram
+# test wit subtract, rmse, and histram
 """
 Handles serial/parallel reading from ADIOS2 .bp files.
 Initializes an ADIOS2 IO object with an optional XML and MPI configuration and manages data reading.
 """
+
+
 class Writer:
     def __init__(self, IO_Name, bp_file="data.bp", xml=None, comm=None):
         install()

@@ -4,6 +4,7 @@ import argparse
 from rich.traceback import install
 import ReaderClass
 import WrighterClass
+from mpi4py import MPI
 
 
 def RMSE2D(GT, E, step, var_NAME, skip_factor=2):
@@ -107,17 +108,20 @@ def parse_arguments():
     return parser.parse_args()
 
 
+# something is wrong here
 def main():
-    install()
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
     args = parse_arguments()
 
     print(f"Opening input streams: {args.lowres} and {args.highres}")
     print(f"Variable to analyze: {args.var}")
     print(f"Skip factor: {args.skip_factor}")
 
-    r_low = ReaderClass.Reader(args.lowres_io, args.lowres, xml=args.xml)
-    r_high = ReaderClass.Reader(args.highres_io, args.highres, xml=args.xml)
-    w = WrighterClass.Writer(args.writer_io, args.output_file, xml=args.xml)
+    r_low = ReaderClass.Reader(args.lowres_io, args.lowres, xml=args.xml, comm=comm)
+    r_high = ReaderClass.Reader(args.highres_io, args.highres, xml=args.xml, comm=comm)
+    w = WrighterClass.Writer(args.writer_io, args.output_file, xml=args.xml, comm=comm)
 
     var = args.var
     rmse_values = []
