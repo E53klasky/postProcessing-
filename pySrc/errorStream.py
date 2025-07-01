@@ -4,7 +4,6 @@ import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 from rich.traceback import install
 from ReaderClass import Reader
 
@@ -99,89 +98,96 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
     return errors
 
 
-def RK_visualization(segment_compressed, segment_uncompressed, distance, step=None):
+def RK_visualization(segments_compressed, segments_uncompressed, distance, step=None):
+    errors = plot_pointwise_errors(segments_compressed, segments_uncompressed, step=step)
 
-    errors = plot_pointwise_errors(segment_compressed, segment_uncompressed, step=step)
-    # fix this to be two other plots one of the segments plottwed both of them and one from the errors two soerate plots
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
 
-    streamline_filename = "highlighted_Lower_Resolution_streamline.png"
-    if step is not None:
-        streamline_filename = (
-            f"highlighted_Lower_Resolution_streamline_step_{step:04d}.png"
+
+    compressed_points = np.vstack(segments_compressed) if len(segments_compressed) > 0 else np.empty((0, 2))
+    uncompressed_points = np.vstack(segments_uncompressed) if len(segments_uncompressed) > 0 else np.empty((0, 2))
+
+    fig_streamlines, ax_streamlines = plt.subplots(figsize=(10, 8))
+    if compressed_points.size > 0:
+        ax_streamlines.plot(
+            compressed_points[:, 0],
+            compressed_points[:, 1],
+            linestyle='-',
+            color='red',
+            label='Lower Res (Compressed)'
         )
-    streamline_path = os.path.join(output_dir, streamline_filename)
-    print(f"Saving streamline image to: {streamline_path}")
-
-    fig2 = plt.figure(figsize=(10, 8))
-    plt.plot(range(len(errors)), errors, marker="o", linestyle="-", color="b")
-    plt.yscale("log")
-    plt.title(f"RK Error Plot {distance}", fontsize=12)
-    plt.xlabel("RK steps", fontsize=12)
-    plt.ylabel("Error Magnitude", fontsize=12)
-
-    plt.tick_params(axis="both", labelsize=12)
-
-    plt.grid(True, which="both")
+    if uncompressed_points.size > 0:
+        ax_streamlines.plot(
+            uncompressed_points[:, 0],
+            uncompressed_points[:, 1],
+            linestyle='--',
+            color='green',
+            label='Higher Res (Uncompressed)'
+        )
+    ax_streamlines.set_xlabel("X", fontsize=12)
+    ax_streamlines.set_ylabel("Y", fontsize=12)
+    title_str = f"Streamlines Comparison (Step {step:04d})" if step is not None else "Streamlines Comparison"
+    ax_streamlines.set_title(title_str, fontsize=14)
+    ax_streamlines.legend(fontsize=12)
+    ax_streamlines.grid(True)
     plt.tight_layout()
 
-    errorplot_filename = "distance_error_plot.png"
-    if step is not None:
-        errorplot_filename = f"distance_error_plot_step_{step:04d}.png"
-    errorplot_path = os.path.join(output_dir, errorplot_filename)
-    print(f"Saving error plot image to: {errorplot_path}")
+    streamlines_fname = f"streamlines_comparison_step_{step:04d}.png" if step is not None else "streamlines_comparison.png"
+    streamlines_path = os.path.join(output_dir, streamlines_fname)
+    print(f"Saving streamlines plot to: {streamlines_path}")
+    fig_streamlines.savefig(streamlines_path, dpi=300, bbox_inches='tight')
+    plt.close(fig_streamlines)
 
-    plt.savefig(errorplot_path, dpi=300, bbox_inches="tight")
-    plt.close(fig2)
-    # ----------------------------------------------------
-    segment_compressed = np.array(segment_compressed)
-    segment_uncompressed = np.array(segment_uncompressed)
-    # ----------------------------------------------------
-    fig3, ax3 = plt.subplots(figsize=(10, 8))
-    ax3.plot(
-        segment_compressed[:, 0],
-        segment_compressed[:, 1],
-        linestyle="-",
-        color="red",
-        label="Lower Res",
-    )
-    ax3.plot(
-        segment_uncompressed[:, 0],
-        segment_uncompressed[:, 1],
-        linestyle="--",
-        color="green",
-        label="Higher res",
-    )
+    fig_combined, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
 
-    ax3.set_xlabel("X", fontsize=12)
-    ax3.set_ylabel("Y", fontsize=12)
-    if step is not None:
-        ax3.set_title(
-            f"Lower Resolution vs Higher Resolution Streamlines (Step {step:04d})",
-            fontsize=12,
+    if errors:
+        ax1.plot(
+            range(len(errors)),
+            errors,
+            marker='o',
+            markersize=3,
+            linestyle='-',
+            color='blue',
         )
-    else:
-        ax3.set_title("Lower Resolution vs Higher Resolution Streamlines", fontsize=12)
-    ax3.legend(fontsize=12)
-    ax3.tick_params(axis="both", labelsize=12)
-    ax3.grid(True)
+        ax1.set_yscale('log')
+    ax1.set_title("Point-wise RK Error", fontsize=14)
+    ax1.set_xlabel("Point Index (All Streamlines)", fontsize=12)
+    ax1.set_ylabel("Error Magnitude", fontsize=12)
+    ax1.grid(True, which='both')
 
-    streamline_comparison_filename = "streamline_comparison.png"
-    if step is not None:
-        streamline_comparison_filename = f"streamline_comparison_step_{step:04d}.png"
-    streamline_comparison_path = os.path.join(
-        output_dir, streamline_comparison_filename
-    )
-    print(f"Saving streamline comparison image to: {streamline_comparison_path}")
+    if compressed_points.size > 0:
+        ax2.plot(
+            compressed_points[:, 0],
+            compressed_points[:, 1],
+            linestyle='-',
+            color='red',
+            label='Lower Res (Compressed)'
+        )
+    if uncompressed_points.size > 0:
+        ax2.plot(
+            uncompressed_points[:, 0],
+            uncompressed_points[:, 1],
+            linestyle='--',
+            color='green',
+            label='Higher Res (Uncompressed)'
+        )
+    ax2.set_xlabel("X", fontsize=12)
+    ax2.set_ylabel("Y", fontsize=12)
+    ax2.set_title("Streamlines Comparison", fontsize=14)
+    ax2.legend(fontsize=12)
+    ax2.grid(True)
 
-    fig3.savefig(
-        streamline_comparison_path,
-        dpi=300,
-        bbox_inches="tight",
-    )
-    plt.close(fig3)
+    plt.tight_layout()
+
+    combined_fname = f"combined_plot_step_{step:04d}.png" if step is not None else "combined_plot.png"
+    combined_path = os.path.join(output_dir, combined_fname)
+    print(f"Saving combined plot to: {combined_path}")
+    fig_combined.savefig(combined_path, dpi=300, bbox_inches='tight')
+    plt.close(fig_combined)
+
+    return errors
 
 
 def parse_arguments():
