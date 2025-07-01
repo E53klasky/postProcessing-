@@ -6,8 +6,9 @@ import WrighterClass
 import numpy as np
 from mpi4py import MPI
 
-# add timers 
-# clean up 
+
+# add timers and print out to text files
+# clean up
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate streamline plots from ADIOS2 BP5 files"
@@ -76,7 +77,7 @@ def main():
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    r = ReaderClass.Reader(readIO, bpfile1, xml=xml,comm=comm)
+    r = ReaderClass.Reader(readIO, bpfile1, xml=xml, comm=comm)
     w = WrighterClass.Writer(WrightIO, output, xml=xml, comm=comm)
 
     flag = True
@@ -90,7 +91,7 @@ def main():
             r.set_read_vars([name])
             data = r.read_step(name)
             w.write(name, data)
-            
+
             if flag:
                 w.write("error_bound", np.array([parser.error_bound]))
                 flag = False

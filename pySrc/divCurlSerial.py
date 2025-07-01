@@ -72,7 +72,7 @@ def parse_arguments():
 
 
 def main():
-    install()
+    
     args = parse_arguments()
     var_names = [v.strip() for v in args.vars.split(",")]
     if len(var_names) < 2:

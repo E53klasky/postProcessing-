@@ -3,26 +3,30 @@ from rich.traceback import install
 
 """ 
 Handles serial/parallel reading from ADIOS2 .bp files.
-Initializes an ADIOS2 IO object with an optional XML configuration and manages data reading.
+Initializes an ADIOS2 IO object with an optional XML and MPI configuration and manages data reading.
 
 NOTE parallel only works for 3d in the 0,1,2 in the 2 
 """
+
+
 class Reader:
-    def __init__(self, IO_Name, bp_file, xml=None, comm = None):
+    def __init__(self, IO_Name, bp_file, xml=None, comm=None):
         install()
-        
+
         self.comm = comm
         if xml is not None:
-            self.adios_obj = adios2.Adios(xml, comm= self.comm)
+            self.adios_obj = adios2.Adios(xml, comm=self.comm)
         else:
-            self.adios_obj = adios2.Adios(comm = self.comm)
+            self.adios_obj = adios2.Adios(comm=self.comm)
         self.IO_Name = IO_Name
         self.Read_IO = self.adios_obj.declare_io(IO_Name)
         self.bp_file = bp_file
-        self.Adios_reader = adios2.Stream(self.Read_IO, self.bp_file, "r", comm=self.comm)
+        self.Adios_reader = adios2.Stream(
+            self.Read_IO, self.bp_file, "r", comm=self.comm
+        )
         self.current_step = -1
         self.vars_Out = {}
-        
+
         self.current_step = -1
         self.numRanks = 1
         self.rank = 0
@@ -30,7 +34,6 @@ class Reader:
         if self.comm:
             self.numRanks = self.comm.Get_size()
             self.rank = self.comm.Get_rank()
-
 
     def begin_step(self):
         status = self.Adios_reader.begin_step()
@@ -45,11 +48,10 @@ class Reader:
             if adios_var is None:
                 print(f"Variable '{var}' not found in the stream.")
             self.vars_Out[var] = adios_var
-            
-    def set_selection(self, data): 
+
+    def set_selection(self, data):
         shape = data.shape()
 
-       
         if len(shape) == 3:
             total_slices = shape[2]
             base = total_slices // self.numRanks
@@ -60,21 +62,19 @@ class Reader:
             start = [0, 0, local_start_2] + [0] * (len(shape) - 3)
             count = list(shape)
             count[2] = local_count_2
-            
+
             data.set_selection((start, count))
         elif len(shape) == 2:
             print("skip")
         else:
             print("Skip")
 
-        
-
     def read_step(self, var_name):
-        
+
         adios_var = self.vars_Out.get(var_name)
-        self.set_selection(adios_var) 
+        self.set_selection(adios_var)
         var_data = self.Adios_reader.read(adios_var)
-        
+
         return var_data
 
     def end_step(self):

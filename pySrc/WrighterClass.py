@@ -1,9 +1,12 @@
-import adios2 
-from rich.traceback import install 
+import adios2
+from rich.traceback import install
 from mpi4py import MPI
 
-
-#  test it
+# test wit divCurl, subtract, rmse, and histram
+"""
+Handles serial/parallel reading from ADIOS2 .bp files.
+Initializes an ADIOS2 IO object with an optional XML and MPI configuration and manages data reading.
+"""
 class Writer:
     def __init__(self, IO_Name, bp_file="data.bp", xml=None, comm=None):
         install()
@@ -37,12 +40,11 @@ class Writer:
         global_count = count.copy()
         global_count[-1] = self.comm.allreduce(count[-1], op=MPI.SUM)
         offset = count.copy()
-        offset[-1] = self.comm.exscan(count[-1]) or 0  
-        for i in range(len(offset) - 1):  
+        offset[-1] = self.comm.exscan(count[-1]) or 0
+        for i in range(len(offset) - 1):
             offset[i] = 0
 
         return (global_count, offset, count)
-
 
     def write(self, name, data):
         shape, offset, count = self.get_var_info(data)
@@ -57,24 +59,32 @@ class Writer:
         print("Writer closed successfully.")
 
 
-# === ✅ How to Use the Writer Class ===
+# === How to Use the Writer Class (Serial) ===
 
-# # 1. Prepare your data
+# import numpy as np
 # var1 = np.arange(10, dtype=np.float64)
 # var2 = np.linspace(0, 1, 10, dtype=np.float64)
-
-# # 2. Create a Writer object
-# # Arguments: IO_Name, output file name (optional), XML config file (optional)
 # w = Writer(IO_Name="example_IO", bp_file="example.bp", xml=None)
-#  start step
 # w.begin_step()
-
-
-# # 3. Write a single timestep (you can loop this for multiple steps)
-
 # w.write("var1", var1)
 # w.write("var2", var2)
 # w.end_step()
+# w.close()
 
-# # 4. Always close the writer at the end
+# === How to Use the Writer Class (Parallel with MPI) ===
+
+# from mpi4py import MPI
+# import numpy as np
+# comm = MPI.COMM_WORLD
+# rank = comm.Get_rank()
+# size = comm.Get_size()
+# # Each rank writes its own chunk of data
+# local_size = 10
+# var1 = np.arange(rank * local_size, (rank + 1) * local_size, dtype=np.float64)
+# var2 = np.linspace(rank, rank + 1, local_size, dtype=np.float64)
+# w = Writer(IO_Name="example_IO", bp_file="example.bp", xml=None, comm=comm)
+# w.begin_step()
+# w.write("var1", var1)
+# w.write("var2", var2)
+# w.end_step()
 # w.close()

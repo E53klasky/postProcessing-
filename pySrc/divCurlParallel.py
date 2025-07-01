@@ -1,22 +1,52 @@
-from mpi4py import MPI
 import numpy as np
-from adios2 import Adios, Stream
+import adios2
 import argparse
 import sys
 from rich.traceback import install
+import ReaderClass
+import WrighterClass
+from mpi4py import MPI
+
+def curl_2d(vx, vy):
+    return np.gradient(vy, axis=1, edge_order=2) - np.gradient(vx, axis=0, edge_order=2)
 
 
-# need to manully change to take your own gradient what ever order you want
+def curl_3d(vx, vy, vz):
+    curl_x = np.gradient(vz, axis=1, edge_order=2) - np.gradient(
+        vy, axis=0, edge_order=2
+    )
+    curl_y = np.gradient(vx, axis=0, edge_order=2) - np.gradient(
+        vz, axis=2, edge_order=2
+    )
+    curl_z = np.gradient(vy, axis=2, edge_order=2) - np.gradient(
+        vx, axis=1, edge_order=2
+    )
+    return curl_x, curl_y, curl_z
+
+
 def parse_arguments():
-    install()
     parser = argparse.ArgumentParser(
         description="Calculate divergence and curl from ADIOS2 BP5 velocity files"
     )
-
     parser.add_argument(
-        "input_file", type=str, help="Path to the input ADIOS2 BP5 file (REQUIRED)"
+        "--file1",
+        type=str,
+        required=True,
+        help="First Adios file with streamline segments (lower resolution/compressed)",
     )
-
+    parser.add_argument(
+        "--IO_Name1",
+        type=str,
+        default="reader1",
+        help="IO Name for the first Adios file (default: reader1)",
+    )
+    parser.add_argument(
+        "--writeIO",
+        "-wio",
+        type=str,
+        required=True,
+        help="IO Name for the output Adios file",
+    )
     parser.add_argument(
         "--xml",
         "-x",
@@ -24,301 +54,89 @@ def parse_arguments():
         default=None,
         help="Path to ADIOS2 XML configuration file (optional)",
     )
-
     parser.add_argument(
         "--output",
         "-o",
         type=str,
         default="div_curl.bp",
-        help="Output file name default: div_curl.bp (optional))",
+        help="Output file name (default: div_curl.bp)",
     )
-
     parser.add_argument(
-        "max_steps", type=int, help="Maximum number of time steps to process (REQUIRED)"
+        "--vars",
+        "-v",
+        type=str,
+        required=True,
+        help="Velocity variable names (comma-separated, e.g., vx,vy,vz)",
     )
-
     return parser.parse_args()
 
 
 def main():
-    install()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
-
-    if rank == 0:
-        print(f"Running with {size} MPI processes")
-
+    
     args = parse_arguments()
-
-    input_file = args.input_file
-    adios2_xml = args.xml if args.xml else "no xml file provided"
-    output_file = args.output
-    max_steps = args.max_steps
-
-    if rank == 0:
-        print(f"Input file: {input_file}")
-        print(f"ADIOS2 XML file: {adios2_xml}")
-        print(f"Output file: {output_file}")
-
-    if max_steps <= 0:
-        if rank == 0:
-            print("Error: max_steps must be a non-negative integer.")
+    var_names = [v.strip() for v in args.vars.split(",")]
+    if len(var_names) < 2:
+        print("At least two velocity variables are required (vx, vy[, vz])")
         sys.exit(1)
 
-    if "no xml file provided" == adios2_xml:
-        adios_obj = Adios(comm)
-    else:
-        adios_obj = Adios(adios2_xml, comm)
+    reader = ReaderClass.Reader(args.IO_Name1, args.file1, xml=args.xml, comm=comm)
+    writer = WrighterClass.Writer(args.writeIO, bp_file=args.output, xml=args.xml, comm=comm)
 
-    Rio = adios_obj.declare_io("readerIO")
-    Wio = adios_obj.declare_io("WriteIO")
+    while True:
+        status = reader.begin_step()
+        if status != adios2.bindings.StepStatus.OK:
+            break
 
-    with Stream(Rio, input_file, "r", comm) as s, Stream(
-        Wio, output_file, "w", comm
-    ) as w:
-        variables_defined = False
+        writer.begin_step()
+        reader.set_read_vars(var_names)
 
-        for step in s:
-            status = s.begin_step()
-            if not status:
-                break
+        vx = reader.read_step(var_names[0])
+        vy = reader.read_step(var_names[1])
+        vz = reader.read_step(var_names[2]) if len(var_names) == 3 else None
 
-            current_step = s.current_step()
-            comm.Barrier()
+        if vx.ndim == 3 and vx.shape[0] == 1:
+            vx = np.squeeze(vx)
+            vy = np.squeeze(vy)
+            vz = np.squeeze(vz) if vz is not None else None
+            div = np.gradient(vx, axis=1, edge_order=2) + np.gradient(
+                vy, axis=0, edge_order=2
+            )
+            curl_z = curl_2d(vx, vy)
+            writer.write("Div", div)
+            writer.write("Curl_Z", curl_z)
+            writer.write("Curl_Z", curl_z)
 
-            if rank == 0:
-                print(f"Processing step {current_step}")
+        elif vx.ndim == 2:
+            div = np.gradient(vx, axis=1, edge_order=2) + np.gradient(
+                vy, axis=0, edge_order=2
+            )
+            curl_z = curl_2d(vx, vy)
+            writer.write("Div", div)
+            writer.write("Curl_Z", curl_z)
+            writer.write("Curl_Z", curl_z)
 
-            w.begin_step()
-            comm.Barrier()
+        else:
+            div = (
+                np.gradient(vx, axis=2, edge_order=2)
+                + np.gradient(vy, axis=1, edge_order=2)
+                + np.gradient(vz, axis=0, edge_order=2)
+            )
+            curl_x, curl_y, curl_z = curl_3d(vx, vy, vz)
+            writer.write("Div", div)
+            writer.write("Curl_x", curl_x)
+            writer.write("Curl_y", curl_y)
+            writer.write("Curl_z", curl_z)
 
-            if not variables_defined:
-                uxR = Rio.inquire_variable("ux")
-                uyR = Rio.inquire_variable("uy")
-                uzR = Rio.inquire_variable("uz")
+        reader.end_step()
+        writer.end_step()
 
-                global_shape = uxR.shape()
-                if rank == 0:
-                    print(f"Global shape: {global_shape}")
-
-                if not global_shape:
-                    if rank == 0:
-                        print(f"No shape info for variable ux")
-                    sys.exit(1)
-
-                total_slices = global_shape[2]
-                base = total_slices // size
-                rem = total_slices % size
-                local_count_2 = base + 1 if rank < rem else base
-                local_start_2 = rank * base + min(rank, rem)
-
-                read_start_2 = max(0, local_start_2 - 1)
-                read_end_2 = min(total_slices, local_start_2 + local_count_2 + 1)
-                read_count_2 = read_end_2 - read_start_2
-
-                write_start = [0, 0, local_start_2] + [0] * (len(global_shape) - 3)
-                write_count = list(global_shape)
-                write_count[2] = local_count_2
-
-                read_start = [0, 0, read_start_2] + [0] * (len(global_shape) - 3)
-                read_count = list(global_shape)
-                read_count[2] = read_count_2
-
-                if rank == 0:
-                    print(
-                        f"Rank {rank}: read_start={read_start}, read_count={read_count}"
-                    )
-                    print(
-                        f"Rank {rank}: write_start={write_start}, write_count={write_count}"
-                    )
-
-                uxR.set_selection((read_start, read_count))
-                uyR.set_selection((read_start, read_count))
-                uzR.set_selection((read_start, read_count))
-
-                ux = s.read(uxR)
-                uy = s.read(uyR)
-                uz = s.read(uzR)
-
-                comm.Barrier()
-                if rank == 0:
-                    print(
-                        f"Read data shapes: ux={ux.shape}, uy={uy.shape}, uz={uz.shape}"
-                    )
-
-                if len(global_shape) == 3 and global_shape[0] != 1:
-                    div_full = (
-                        np.gradient(ux, axis=2, edge_order=2)
-                        + np.gradient(uy, axis=1, edge_order=2)
-                        + np.gradient(uz, axis=0, edge_order=2)
-                    )
-
-                    curl_x_full = np.gradient(uz, axis=1, edge_order=2) - np.gradient(
-                        uy, axis=0, edge_order=2
-                    )
-                    curl_y_full = np.gradient(ux, axis=0, edge_order=2) - np.gradient(
-                        uz, axis=2, edge_order=2
-                    )
-                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(
-                        ux, axis=1, edge_order=2
-                    )
-
-                    ghost_start = 1 if read_start_2 > 0 else 0
-                    ghost_end = ghost_start + local_count_2
-
-                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
-                    curl_x = np.ascontiguousarray(
-                        curl_x_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_y = np.ascontiguousarray(
-                        curl_y_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_z = np.ascontiguousarray(
-                        curl_z_full[:, :, ghost_start:ghost_end]
-                    )
-
-                elif len(global_shape) == 3 and global_shape[0] == 1:
-                    div_full = np.gradient(ux, axis=2, edge_order=2) + np.gradient(
-                        uy, axis=1, edge_order=2
-                    )
-
-                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(
-                        ux, axis=1, edge_order=2
-                    )
-                    curl_x_full = np.zeros_like(ux)
-                    curl_y_full = np.zeros_like(uy)
-
-                    ghost_start = 1 if read_start_2 > 0 else 0
-                    ghost_end = ghost_start + local_count_2
-
-                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
-                    curl_x = np.ascontiguousarray(
-                        curl_x_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_y = np.ascontiguousarray(
-                        curl_y_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_z = np.ascontiguousarray(
-                        curl_z_full[:, :, ghost_start:ghost_end]
-                    )
-
-                var_div = Wio.define_variable(
-                    "Div", div, global_shape, write_start, write_count
-                )
-                var_curlx = Wio.define_variable(
-                    "Curl_x", curl_x, global_shape, write_start, write_count
-                )
-                var_curly = Wio.define_variable(
-                    "Curl_y", curl_y, global_shape, write_start, write_count
-                )
-                var_curlz = Wio.define_variable(
-                    "Curl_z", curl_z, global_shape, write_start, write_count
-                )
-
-                variables_defined = True
-
-            else:
-                uxR = Rio.inquire_variable("ux")
-                uyR = Rio.inquire_variable("uy")
-                uzR = Rio.inquire_variable("uz")
-
-                global_shape = uxR.shape()
-                total_slices = global_shape[2]
-                base = total_slices // size
-                rem = total_slices % size
-                local_count_2 = base + 1 if rank < rem else base
-                local_start_2 = rank * base + min(rank, rem)
-
-                read_start_2 = max(0, local_start_2 - 1)
-                read_end_2 = min(total_slices, local_start_2 + local_count_2 + 1)
-                read_count_2 = read_end_2 - read_start_2
-
-                read_start = [0, 0, read_start_2] + [0] * (len(global_shape) - 3)
-                read_count = list(global_shape)
-                read_count[2] = read_count_2
-
-                uxR.set_selection((read_start, read_count))
-                uyR.set_selection((read_start, read_count))
-                uzR.set_selection((read_start, read_count))
-
-                ux = s.read(uxR)
-                uy = s.read(uyR)
-                uz = s.read(uzR)
-
-                if len(global_shape) == 3 and global_shape[0] != 1:
-                    div_full = (
-                        np.gradient(ux, axis=2, edge_order=2)
-                        + np.gradient(uy, axis=1, edge_order=2)
-                        + np.gradient(uz, axis=0, edge_order=2)
-                    )
-
-                    curl_x_full = np.gradient(uz, axis=1, edge_order=2) - np.gradient(
-                        uy, axis=0, edge_order=2
-                    )
-                    curl_y_full = np.gradient(ux, axis=0, edge_order=2) - np.gradient(
-                        uz, axis=2, edge_order=2
-                    )
-                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(
-                        ux, axis=1, edge_order=2
-                    )
-
-                    ghost_start = 1 if read_start_2 > 0 else 0
-                    ghost_end = ghost_start + local_count_2
-
-                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
-                    curl_x = np.ascontiguousarray(
-                        curl_x_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_y = np.ascontiguousarray(
-                        curl_y_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_z = np.ascontiguousarray(
-                        curl_z_full[:, :, ghost_start:ghost_end]
-                    )
-
-                elif len(global_shape) == 3 and global_shape[0] == 1:
-                    div_full = np.gradient(ux, axis=2, edge_order=2) + np.gradient(
-                        uy, axis=1, edge_order=2
-                    )
-
-                    curl_z_full = np.gradient(uy, axis=2, edge_order=2) - np.gradient(
-                        ux, axis=1, edge_order=2
-                    )
-                    curl_x_full = np.zeros_like(ux)
-                    curl_y_full = np.zeros_like(uy)
-
-                    ghost_start = 1 if read_start_2 > 0 else 0
-                    ghost_end = ghost_start + local_count_2
-
-                    div = np.ascontiguousarray(div_full[:, :, ghost_start:ghost_end])
-                    curl_x = np.ascontiguousarray(
-                        curl_x_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_y = np.ascontiguousarray(
-                        curl_y_full[:, :, ghost_start:ghost_end]
-                    )
-                    curl_z = np.ascontiguousarray(
-                        curl_z_full[:, :, ghost_start:ghost_end]
-                    )
-
-            w.write("Div", div)
-            w.write("Curl_x", curl_x)
-            w.write("Curl_y", curl_y)
-            w.write("Curl_z", curl_z)
-
-            w.end_step()
-            comm.Barrier()
-
-            if not status or current_step >= max_steps - 1:
-                if rank == 0:
-                    print(f"Reached max_steps = {max_steps}")
-                break
-
-    if rank == 0:
-        print(f"Output written to {output_file}")
+    reader.close()
+    writer.close()
+    print(f"DivCurl finished successfully and saved to ./{args.output}")
 
 
 if __name__ == "__main__":
-    install()
     main()
