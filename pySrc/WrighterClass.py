@@ -1,5 +1,6 @@
-import adios2
-from rich.traceback import install
+import adios2 
+from rich.traceback import install 
+from mpi4py import MPI
 
 
 #  test it
@@ -32,12 +33,16 @@ class Writer:
         print(f"Writing step: {self.current_step}")
 
     def get_var_info(self, data):
-        # fix
         count = list(data.shape)
-        shape = [x * self.numRanks for x in data.shape]
-        offset = [x * self.rank for x in data.shape]
+        global_count = count.copy()
+        global_count[-1] = self.comm.allreduce(count[-1], op=MPI.SUM)
+        offset = count.copy()
+        offset[-1] = self.comm.exscan(count[-1]) or 0  
+        for i in range(len(offset) - 1):  
+            offset[i] = 0
 
-        return (shape, offset, count)
+        return (global_count, offset, count)
+
 
     def write(self, name, data):
         shape, offset, count = self.get_var_info(data)
