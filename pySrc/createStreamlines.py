@@ -6,8 +6,6 @@ from scipy.interpolate import RegularGridInterpolator
 import ReaderClass
 import WrighterClass
 import re
-from mpi4py import MPI
-import sys
 
 
 # clean up code and make this work for 3d
@@ -184,12 +182,6 @@ def parse_arguments():
 
 
 def main():
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-    if size > 1:
-        print("Only works with 1 ranks")
-        sys.exit()
     args = parse_arguments()
 
     bp_file = args.file
@@ -201,13 +193,11 @@ def main():
     output_file = args.output
     dt = args.step_size
     num_rk_steps = args.num_RK_steps
-    adios_obj = adios2.Adios()
-    reader = ReaderClass.Reader(
-        IO_Name=io_name, bp_file=bp_file, xml=xml_file, comm=comm
-    )
+
+    reader = ReaderClass.Reader(IO_Name=io_name, bp_file=bp_file, xml=xml_file)
 
     wrigher = WrighterClass.Writer(
-        IO_Name=io_write_name, bp_file=output_file, xml=xml_file, comm=comm
+        IO_Name=io_write_name, bp_file=output_file, xml=xml_file
     )
 
     print("Making streamlines Now")

@@ -142,8 +142,6 @@ def main():
             print(f"Reading step: {int(step_count)}")
             w.begin_step()
 
-  
-
             r_low.set_read_vars([var])
             r_high.set_read_vars([var])
 

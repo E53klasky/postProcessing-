@@ -8,7 +8,8 @@ from rich.traceback import install
 from ReaderClass import Reader
 
 
-# make this also work for 3d
+# make this work with 3d as well maybe a new code
+# make this work with more than one plot
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(

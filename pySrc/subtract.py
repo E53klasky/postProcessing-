@@ -6,6 +6,7 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
 
+
 # NOTE this only works in parallel for same sizes
 # clean up
 def parse_arguments():
