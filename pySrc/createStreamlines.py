@@ -6,9 +6,11 @@ from scipy.interpolate import RegularGridInterpolator
 import ReaderClass
 import WrighterClass
 import re
+from mpi4py import MPI
+import sys
 
 
-# clean up code and maybe make it parallel but good
+# clean up code and make this work for 3d
 def rk4_streamline_from_grid(
     x0, y0, vx, vy, max_len=3.0, dt=0.01, max_steps=1000, xlim=None, ylim=None
 ):
@@ -182,6 +184,12 @@ def parse_arguments():
 
 
 def main():
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    if size > 1:
+        print("Only works with 1 ranks")
+        sys.exit()
     args = parse_arguments()
 
     bp_file = args.file
@@ -194,10 +202,12 @@ def main():
     dt = args.step_size
     num_rk_steps = args.num_RK_steps
     adios_obj = adios2.Adios()
-    reader = ReaderClass.Reader(IO_Name=io_name, bp_file=bp_file, xml=xml_file)
+    reader = ReaderClass.Reader(
+        IO_Name=io_name, bp_file=bp_file, xml=xml_file, comm=comm
+    )
 
     wrigher = WrighterClass.Writer(
-        IO_Name=io_write_name, bp_file=output_file, xml=xml_file
+        IO_Name=io_write_name, bp_file=output_file, xml=xml_file, comm=comm
     )
 
     print("Making streamlines Now")
@@ -208,6 +218,9 @@ def main():
 
         if status != adios2.bindings.StepStatus.OK:
             break
+
+        current_step = reader.current_step()
+        print(f"Reading step: {int(current_step)}")
         wrigher.begin_step()
 
         reader.set_read_vars(var_names)
@@ -233,6 +246,7 @@ def main():
             max_steps=num_rk_steps,
         )
 
+        # How to get this to work in 3d???????????????????????????
         coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
         coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
         offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
@@ -241,6 +255,7 @@ def main():
         coords_y = coords_y.flatten()
         offsets = offsets.flatten()
 
+        # I would have
         wrigher.write("coords_x", coords_x)
         wrigher.write("coords_y", coords_y)
         wrigher.write("offsets", offsets)

@@ -8,6 +8,7 @@ from rich.traceback import install
 from ReaderClass import Reader
 
 
+# make this also work for 3d
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(
@@ -72,7 +73,7 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
             else "Point-wise Error Distribution"
         )
         ax.set_title(title, fontsize=14)
-        ax.set_xlabel("Point Index (All Streamlines)", fontsize=12)
+        ax.set_xlabel("RK steps", fontsize=12)
         ax.set_ylabel("Error Magnitude", fontsize=12)
         ax.grid(True, which="both")
     else:
@@ -99,45 +100,61 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
 
 
 def RK_visualization(segments_compressed, segments_uncompressed, distance, step=None):
-    errors = plot_pointwise_errors(segments_compressed, segments_uncompressed, step=step)
-
+    errors = plot_pointwise_errors(
+        segments_compressed, segments_uncompressed, step=step
+    )
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
 
-
-    compressed_points = np.vstack(segments_compressed) if len(segments_compressed) > 0 else np.empty((0, 2))
-    uncompressed_points = np.vstack(segments_uncompressed) if len(segments_uncompressed) > 0 else np.empty((0, 2))
+    compressed_points = (
+        np.vstack(segments_compressed)
+        if len(segments_compressed) > 0
+        else np.empty((0, 2))
+    )
+    uncompressed_points = (
+        np.vstack(segments_uncompressed)
+        if len(segments_uncompressed) > 0
+        else np.empty((0, 2))
+    )
 
     fig_streamlines, ax_streamlines = plt.subplots(figsize=(10, 8))
     if compressed_points.size > 0:
         ax_streamlines.plot(
             compressed_points[:, 0],
             compressed_points[:, 1],
-            linestyle='-',
-            color='red',
-            label='Lower Res (Compressed)'
+            linestyle="-",
+            color="red",
+            label="Lower Res (Compressed)",
         )
     if uncompressed_points.size > 0:
         ax_streamlines.plot(
             uncompressed_points[:, 0],
             uncompressed_points[:, 1],
-            linestyle='--',
-            color='green',
-            label='Higher Res (Uncompressed)'
+            linestyle="--",
+            color="green",
+            label="Higher Res (Uncompressed)",
         )
     ax_streamlines.set_xlabel("X", fontsize=12)
     ax_streamlines.set_ylabel("Y", fontsize=12)
-    title_str = f"Streamlines Comparison (Step {step:04d})" if step is not None else "Streamlines Comparison"
+    title_str = (
+        f"Streamlines Comparison (Step {step:04d})"
+        if step is not None
+        else "Streamlines Comparison"
+    )
     ax_streamlines.set_title(title_str, fontsize=14)
     ax_streamlines.legend(fontsize=12)
     ax_streamlines.grid(True)
     plt.tight_layout()
 
-    streamlines_fname = f"streamlines_comparison_step_{step:04d}.png" if step is not None else "streamlines_comparison.png"
+    streamlines_fname = (
+        f"streamlines_comparison_step_{step:04d}.png"
+        if step is not None
+        else "streamlines_comparison.png"
+    )
     streamlines_path = os.path.join(output_dir, streamlines_fname)
     print(f"Saving streamlines plot to: {streamlines_path}")
-    fig_streamlines.savefig(streamlines_path, dpi=300, bbox_inches='tight')
+    fig_streamlines.savefig(streamlines_path, dpi=300, bbox_inches="tight")
     plt.close(fig_streamlines)
 
     fig_combined, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
@@ -146,32 +163,32 @@ def RK_visualization(segments_compressed, segments_uncompressed, distance, step=
         ax1.plot(
             range(len(errors)),
             errors,
-            marker='o',
+            marker="o",
             markersize=3,
-            linestyle='-',
-            color='blue',
+            linestyle="-",
+            color="blue",
         )
-        ax1.set_yscale('log')
+        ax1.set_yscale("log")
     ax1.set_title("Point-wise RK Error", fontsize=14)
-    ax1.set_xlabel("Point Index (All Streamlines)", fontsize=12)
+    ax1.set_xlabel("RK steps", fontsize=12)
     ax1.set_ylabel("Error Magnitude", fontsize=12)
-    ax1.grid(True, which='both')
+    ax1.grid(True, which="both")
 
     if compressed_points.size > 0:
         ax2.plot(
             compressed_points[:, 0],
             compressed_points[:, 1],
-            linestyle='-',
-            color='red',
-            label='Lower Res (Compressed)'
+            linestyle="-",
+            color="red",
+            label="Lower Res (Compressed)",
         )
     if uncompressed_points.size > 0:
         ax2.plot(
             uncompressed_points[:, 0],
             uncompressed_points[:, 1],
-            linestyle='--',
-            color='green',
-            label='Higher Res (Uncompressed)'
+            linestyle="--",
+            color="green",
+            label="Higher Res (Uncompressed)",
         )
     ax2.set_xlabel("X", fontsize=12)
     ax2.set_ylabel("Y", fontsize=12)
@@ -181,10 +198,14 @@ def RK_visualization(segments_compressed, segments_uncompressed, distance, step=
 
     plt.tight_layout()
 
-    combined_fname = f"combined_plot_step_{step:04d}.png" if step is not None else "combined_plot.png"
+    combined_fname = (
+        f"combined_plot_step_{step:04d}.png"
+        if step is not None
+        else "combined_plot.png"
+    )
     combined_path = os.path.join(output_dir, combined_fname)
     print(f"Saving combined plot to: {combined_path}")
-    fig_combined.savefig(combined_path, dpi=300, bbox_inches='tight')
+    fig_combined.savefig(combined_path, dpi=300, bbox_inches="tight")
     plt.close(fig_combined)
 
     return errors
@@ -253,6 +274,8 @@ def main():
             or bindings.StepStatus.OK != status_high
         ):
             break
+        current_step = r_low.current_step()
+        print(f"Reading step: {int(current_step)}")
 
         r_high.set_read_vars([args.var_x, args.var_y, args.var_offset])
         r_low.set_read_vars([args.var_x, args.var_y, args.var_offset])
@@ -287,7 +310,7 @@ def main():
             segment_compressed_pairs,
             segment_uncompressed_pair,
             distance,
-            step=r_low.current_step,
+            step=current_step,
         )
 
         r_low.end_step()
