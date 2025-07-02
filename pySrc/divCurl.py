@@ -92,7 +92,7 @@ def main():
         status = reader.begin_step()
         if status != adios2.bindings.StepStatus.OK:
             break
-        # note fix this  for proper step
+
         current_step = reader.current_step()
         print(f"Reading step: {int(current_step)}")
         writer.begin_step()

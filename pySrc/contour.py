@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
 import argparse
 from adios2 import bindings
 import os
@@ -66,22 +65,36 @@ def main():
             print("No more steps to read or an error occurred.")
             break
 
+        current_step = r.current_step()
+        print(f"Reading step: {int(current_step)}")
+
         for var in vars:
             data = r.read_step(var)
             if data is None:
                 print(f"Variable '{var}' not found in the stream.")
                 continue
 
-            plt.figure()
-            output_dir = "../RESULTS"
-            os.makedirs(output_dir, exist_ok=True)
-            plt.contourf(np.squeeze(data), cmap="inferno", levels=50)
-            plt.title(f"{var} at step {r.current_step}")
-            plt.colorbar()
-            plt.savefig(os.path.join(output_dir, f"{var}_step_{r.current_step}.png"))
-            plt.close()
+            if len(data.shape) == 2:
+                plt.figure()
+                output_dir = "../RESULTS"
+                os.makedirs(output_dir, exist_ok=True)
+                plt.contourf(data, cmap="inferno", levels=50)
+                plt.title(f"{var} at step {current_step}")
+                plt.colorbar()
+                plt.savefig(os.path.join(output_dir, f"{var}_step_{current_step}.png"))
+                plt.close()
+            elif len(data.shape) == 3 and data.shape[0] == 1:
+                plt.figure()
+                output_dir = "../RESULTS"
+                os.makedirs(output_dir, exist_ok=True)
+                plt.contourf(np.squeeze(data), cmap="inferno", levels=50)
+                plt.title(f"{var} at step {current_step}")
+                plt.colorbar()
+                plt.savefig(os.path.join(output_dir, f"{var}_step_{current_step}.png"))
+                plt.close()
+
             print(
-                f"Saved contour plot for {var} at step {r.current_step} to {output_dir} as {var}_step_{r.current_step}.png"
+                f"Saved contour plot for {var} at step {current_step} to {output_dir} as {var}_step_{current_step}.png"
             )
         r.end_step()
     r.close()

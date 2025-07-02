@@ -1,4 +1,3 @@
-import sys
 import argparse
 import adios2
 import ReaderClass
@@ -85,6 +84,9 @@ def main():
         status = r.begin_step()
         if status != adios2.bindings.StepStatus.OK:
             break
+
+        current_step = r.current_step()
+        print(f"Reading step: {int(current_step)}")
         w.begin_step()
 
         for name, info in r.Adios_reader.available_variables().items():
