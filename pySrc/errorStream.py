@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from rich.traceback import install
 from ReaderClass import Reader
-
+from WrighterClass import Writer
 
 # make this work with 3d as well maybe a new code
 # make this work with more than one plot
@@ -242,6 +242,22 @@ def parse_arguments():
         default="reader2",
         help="IO Name for the first Adios file (default: reader1)",
     )
+    
+    parser.add_argument(
+        "--writeIO",
+        "-wio",
+        type=str,
+        required=True,
+        help="IO Name for the output Adios file",
+    )
+    
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=str,
+        default="RK_error_steps.bp",
+        help="Output file name (default: div_curl.bp)",
+    )
 
     parser.add_argument(
         "--xml", "-x", type=str, default=None, help="ADIOS2 XML config file (optional)"
@@ -253,7 +269,7 @@ def parse_arguments():
     parser.add_argument(
         "--var_y", type=str, required=True, help="Variable name for y coordinates"
     )
-    # rember to find out how to use the offsets
+    
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
@@ -265,7 +281,10 @@ def main():
     args = parse_arguments()
     r_low = Reader(args.IO_Name1, args.file1, xml=args.xml)
     r_high = Reader(args.IO_Name2, args.file2, xml=args.xml)
-
+    writer = Writer(
+        args.writeIO, bp_file=args.output, xml=args.xml
+    )
+    
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
@@ -277,7 +296,8 @@ def main():
             break
         current_step = r_low.current_step()
         print(f"Reading step: {int(current_step)}")
-
+        writer.begin_step()
+        
         r_high.set_read_vars([args.var_x, args.var_y, args.var_offset])
         r_low.set_read_vars([args.var_x, args.var_y, args.var_offset])
 
@@ -307,19 +327,20 @@ def main():
 
         distance = frdist(segment_compressed_pairs, segment_uncompressed_pair)
         print(f"Distance between segments: {distance}")
-        RK_visualization(
+        error = RK_visualization(
             segment_compressed_pairs,
             segment_uncompressed_pair,
             distance,
             step=current_step,
         )
-
+        writer.write("RK_errors", np.array([error]))
+        writer.end_step()
         r_low.end_step()
         r_high.end_step()
-
+    writer.close()
     r_low.close()
     r_high.close()
-    print("Finished ErrorStream.py successfully!")
+    print(f"Finished ErrorStream.py successfully data saved to ./{args.output}!")
 
 
 if __name__ == "__main__":
