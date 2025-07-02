@@ -98,7 +98,7 @@ class Reader:
         print("Reader closed successfully.")
 
 
-# === ✅ How to Use the Reader Class ===
+# ===  How to Use the Reader Class ===
 # r = Reader("example_IO", "example.bp", "example.xml")
 # while True:
 #     status = r.begin_step()
