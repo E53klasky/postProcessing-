@@ -138,10 +138,11 @@ def main():
                 print("End of data stream reached")
                 break
 
+            step_count = r_low.current_step()
+            print(f"Reading step: {int(step_count)}")
             w.begin_step()
 
-            step_count = r_low.current_step
-            print(f"Processing step: {step_count}")
+  
 
             r_low.set_read_vars([var])
             r_high.set_read_vars([var])
@@ -214,6 +215,7 @@ def main():
         print(f"Maximum RMSE: {np.max(rmse_values):.6f}")
         print("=" * 60)
         print("RMSE computation completed successfully.")
+        print(f"RMSE finished successfully and saved to ./{args.output_file}")
     else:
         print("No RMSE values calculated")
 
