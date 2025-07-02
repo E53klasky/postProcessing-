@@ -46,13 +46,16 @@ class Writer:
 
     def get_var_info(self, data):
         count = list(data.shape)
-        global_count = count.copy()
-        global_count[-1] = self.comm.allreduce(count[-1], op=MPI.SUM)
-        offset = count.copy()
-        offset[-1] = self.comm.exscan(count[-1]) or 0
-        for i in range(len(offset) - 1):
-            offset[i] = 0
-
+        if self.comm:
+            global_count = count.copy()
+            global_count[-1] = self.comm.allreduce(count[-1], op=MPI.SUM)
+            offset = count.copy()
+            offset[-1] = self.comm.exscan(count[-1]) or 0
+            for i in range(len(offset) - 1):
+                offset[i] = 0
+        else:
+            global_count = count = list(data.shape)
+            offset = [0] * len(data.shape)
         return (global_count, offset, count)
 
     def write(self, name, data):
