@@ -43,24 +43,39 @@ def main():
     output_dir = "../RESULTS"
     while True:
         status = r.begin_step()
-        step_count = r.current_step
+
         if status != adios2.bindings.StepStatus.OK:
             break
+        step_count = r.current_step()
+        print(f"Reading step: {int(step_count)}")
 
         r.set_read_vars(vars)
 
         for var in vars:
             data = r.read_step(var)
             if data is not None:
+
                 if len(data.shape) == 3 and data.shape[0] == 1:
                     data = data[0, :, :]
-                plt.imshow(data, cmap="inferno")
-                plot_filename = f"{var}_step_{step_count}.png"
-                plt.title(f"{var} at step {step_count}")
-                plt.colorbar()
-                plt.savefig(os.path.join(output_dir, f"{var}_step_{step_count}.png"))
-                plt.close()
-                print(f"Plot saved as {plot_filename} to {output_dir}")
+                    plt.imshow(data, cmap="inferno")
+                    plot_filename = f"{var}_step_{step_count}.png"
+                    plt.title(f"{var} at step {step_count}")
+                    plt.colorbar()
+                    plt.savefig(
+                        os.path.join(output_dir, f"{var}_step_{step_count}.png")
+                    )
+                    plt.close()
+                    print(f"Plot saved as {plot_filename} to {output_dir}")
+                elif len(data.shape) == 2:
+                    plt.imshow(data, cmap="inferno")
+                    plot_filename = f"{var}_step_{step_count}.png"
+                    plt.title(f"{var} at step {step_count}")
+                    plt.colorbar()
+                    plt.savefig(
+                        os.path.join(output_dir, f"{var}_step_{step_count}.png")
+                    )
+                    plt.close()
+                    print(f"Plot saved as {plot_filename} to {output_dir}")
 
             else:
                 print(f"Variable '{var}' not found in the stream.")

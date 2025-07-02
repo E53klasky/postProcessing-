@@ -24,22 +24,29 @@ class Reader:
         self.Adios_reader = adios2.Stream(
             self.Read_IO, self.bp_file, "r", comm=self.comm
         )
-        self.current_step = -1
+
         self.vars_Out = {}
 
-        self.current_step = -1
         self.numRanks = 1
         self.rank = 0
 
         if self.comm:
             self.numRanks = self.comm.Get_size()
             self.rank = self.comm.Get_rank()
+        self.state = False
 
     def begin_step(self):
-        status = self.Adios_reader.begin_step()
-        self.current_step = self.Adios_reader.current_step()
-        print(f"Reading step: {self.current_step}")
+        if self.state == False:
+            self.state = True
+        else:
+            print("Error begin step called wihtout ending the step")
+            self.close()
+        status = self.Adios_reader.begin_step(timeout=0.1)
         return status
+
+    def current_step(self):
+        step = self.Adios_reader.current_step()
+        return step
 
     def set_read_vars(self, vars):
         for var in vars:
@@ -78,8 +85,13 @@ class Reader:
         return var_data
 
     def end_step(self):
+        if self.state == True:
+            self.state = False
+        else:
+            print("Error begin step called wihtout ending the step")
+            self.close()
         self.Adios_reader.end_step()
-        print(f"Step {self.current_step} read successfully.")
+        print(f"Step {self.Adios_reader.current_step()} read successfully.")
 
     def close(self):
         self.Adios_reader.close()

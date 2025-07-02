@@ -92,13 +92,19 @@ def main():
         status = reader.begin_step()
         if status != adios2.bindings.StepStatus.OK:
             break
-
+        # note fix this  for proper step
+        current_step = reader.current_step()
+        print(f"Reading step: {int(current_step)}")
         writer.begin_step()
+
         reader.set_read_vars(var_names)
 
         vx = reader.read_step(var_names[0])
         vy = reader.read_step(var_names[1])
         vz = reader.read_step(var_names[2]) if len(var_names) == 3 else None
+
+        if any(v is None for v in (vx, vy, vz)):
+            break
 
         if vx.ndim == 3 and vx.shape[0] == 1:
             vx = np.squeeze(vx)
@@ -142,4 +148,5 @@ def main():
 
 
 if __name__ == "__main__":
+    install()
     main()

@@ -2,7 +2,7 @@ import adios2
 from rich.traceback import install
 from mpi4py import MPI
 
-# test wit subtract, rmse, and histram
+# works for now -> subtract, rmse | todo -> histagram
 """
 Handles serial/parallel reading from ADIOS2 .bp files.
 Initializes an ADIOS2 IO object with an optional XML and MPI configuration and manages data reading.
@@ -32,7 +32,14 @@ class Writer:
             self.numRanks = self.comm.Get_size()
             self.rank = self.comm.Get_rank()
 
+        self.state = False
+
     def begin_step(self):
+        if self.state == False:
+            self.state = True
+        else:
+            print("Error begin step called wihtout ending the step")
+            self.close()
         status = self.Adios_writer.begin_step()
         self.current_step = self.Adios_writer.current_step()
         print(f"Writing step: {self.current_step}")
@@ -53,6 +60,11 @@ class Writer:
         self.Adios_writer.write(name, data, shape, offset, count)
 
     def end_step(self):
+        if self.state == True:
+            self.state = False
+        else:
+            print("Error begin step called wihtout ending the step")
+            self.close()
         self.Adios_writer.end_step()
         print(f"Step {self.current_step} written successfully.")
 
