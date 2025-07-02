@@ -6,7 +6,8 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
 
-# clean up 
+# NOTE this only works in parallel for same sizes
+# clean up
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
@@ -33,7 +34,10 @@ def parse_arguments():
     parser.add_argument("--var", help="Variable name to subtract", required=True)
 
     parser.add_argument(
-        "--output_file","-o", default="subtract.bp", help="Output BP file for the result"
+        "--output_file",
+        "-o",
+        default="subtract.bp",
+        help="Output BP file for the result",
     )
 
     parser.add_argument(
@@ -57,7 +61,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def subtraction_2D(low_res, ground_truth, skip_factor, tolerance, comm):
+def subtraction_2D(low_res, ground_truth, skip_factor, tolerance):
     diff = np.zeros_like(low_res)
     for i in range(low_res.shape[0]):
         for j in range(low_res.shape[1]):
@@ -65,7 +69,7 @@ def subtraction_2D(low_res, ground_truth, skip_factor, tolerance, comm):
             gt_j = int(j * skip_factor)
 
             if gt_i >= ground_truth.shape[0] or gt_j >= ground_truth.shape[1]:
-                continue  
+                continue
 
             gt_value = ground_truth[gt_i, gt_j]
             e_value = low_res[i, j]
@@ -74,14 +78,10 @@ def subtraction_2D(low_res, ground_truth, skip_factor, tolerance, comm):
     if tolerance is not None:
         diff[diff <= float(tolerance)] = 0.0
 
-    if comm is not None:
-        comm.Barrier()
-
     return diff
 
 
-
-def subtraction_3D(low_res, ground_truth, skip_factor, tolerance, comm):
+def subtraction_3D(low_res, ground_truth, skip_factor, tolerance):
     diff = np.zeros_like(low_res)
     for i in range(low_res.shape[0]):
         for j in range(low_res.shape[1]):
@@ -91,11 +91,11 @@ def subtraction_3D(low_res, ground_truth, skip_factor, tolerance, comm):
                 gt_k = int(k * skip_factor)
 
                 if (
-                    gt_i >= ground_truth.shape[0] or
-                    gt_j >= ground_truth.shape[1] or
-                    gt_k >= ground_truth.shape[2]
+                    gt_i >= ground_truth.shape[0]
+                    or gt_j >= ground_truth.shape[1]
+                    or gt_k >= ground_truth.shape[2]
                 ):
-                    continue  
+                    continue
 
                 gt_value = ground_truth[gt_i, gt_j, gt_k]
                 e_value = low_res[i, j, k]
@@ -104,11 +104,7 @@ def subtraction_3D(low_res, ground_truth, skip_factor, tolerance, comm):
     if tolerance is not None:
         diff[diff <= float(tolerance)] = 0.0
 
-    if comm is not None:
-        comm.Barrier()
-
     return diff
-
 
 
 def main():
@@ -148,6 +144,8 @@ def main():
             or bindings.StepStatus.OK != status_high
         ):
             break
+        current_step = r_low.current_step()
+        print(f"Reading step: {int(current_step)}")
         w.begin_step()
         r_low.set_read_vars([var])
         r_high.set_read_vars([var])
@@ -158,12 +156,14 @@ def main():
 
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
-        if len(low_res.shape) == 3 and low_res.shape[0] == 1:
+        if len(low_res.shape) == 2:
+            diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance)
+        elif len(low_res.shape) == 3 and low_res.shape[0] == 1:
             low_res = np.squeeze(low_res, axis=0)
             ground_truth = np.squeeze(ground_truth, axis=0)
-            diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance, comm)
+            diff = subtraction_2D(low_res, ground_truth, skip_factor, args.tolerance)
         else:
-            diff = subtraction_3D(low_res, ground_truth, skip_factor, args.tolerance, comm)
+            diff = subtraction_3D(low_res, ground_truth, skip_factor, args.tolerance)
 
         w.write(f"diff_{var}", diff)
 
