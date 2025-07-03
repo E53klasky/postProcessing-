@@ -7,11 +7,9 @@ import matplotlib.pyplot as plt
 from rich.traceback import install
 from ReaderClass import Reader
 from matplotlib.collections import LineCollection
+from scipy.interpolate import splprep, splev
 
-
-# add daves distance error
 # make this work with 3d maybe
-# clean up
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(
@@ -38,7 +36,7 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     return streamlines
 
 
-def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None):
+def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None, spline_distances=None):
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
@@ -74,11 +72,20 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
             color="blue",
         )
         ax.set_yscale("log")
-        title = (
-            f"RK step errors at (Step {step:04d})"
-            if step is not None
-            else "RK step errors"
-        )
+        
+        if spline_distances is not None and len(spline_distances) > 0:
+            distances_str = ", ".join([f"{d:.6f}" for d in spline_distances])
+            title = (
+                f"RK step errors at (Step {step:04d}) - Spline Distances: [{distances_str}]"
+                if step is not None
+                else f"RK step errors - Spline Distances: [{distances_str}]"
+            )
+        else:
+            title = (
+                f"RK step errors at (Step {step:04d})"
+                if step is not None
+                else "RK step errors"
+            )
         ax.set_title(title, fontsize=14)
         ax.set_xlabel("RK steps", fontsize=12)
         ax.set_ylabel("Error Magnitude", fontsize=12)
@@ -106,9 +113,9 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
     return errors
 
 
-def RK_visualization(segments_compressed, segments_uncompressed, distances, step=None):
+def RK_visualization(segments_compressed, segments_uncompressed, distances, step=None, spline_distances=None):
     errors = plot_pointwise_errors(
-        segments_compressed, segments_uncompressed, step=step
+        segments_compressed, segments_uncompressed, step=step, spline_distances=spline_distances
     )
 
     output_dir = "../RESULTS"
@@ -272,6 +279,10 @@ def parse_arguments():
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
+    
+    parser.add_argument(
+        "--num_spline","-N" , default= 1000, type=int, required=True, help="Number of spile points to interploate"
+    )
 
     return parser.parse_args()
 
@@ -322,11 +333,43 @@ def main():
 
         num_streamlines = len(segment_uncompressed_pair)
         print(f"Number of streamlines: {num_streamlines}")
+        
+
+        spline_distances = []
+        for i in range(num_streamlines):
+            if i < len(segment_compressed_pairs) and len(segment_compressed_pairs[i]) > 1 and len(segment_uncompressed_pair[i]) > 1:
+                try:
+
+                    comp_x = segment_compressed_pairs[i][:, 0]
+                    comp_y = segment_compressed_pairs[i][:, 1]
+                    uncomp_x = segment_uncompressed_pair[i][:, 0]
+                    uncomp_y = segment_uncompressed_pair[i][:, 1]
+                    
+                    tck0, u0 = splprep([uncomp_x, uncomp_y], s=0)
+                    tck1, u1 = splprep([comp_x, comp_y], s=0)
+
+                    N = args.num_spline
+                    u_fine = np.linspace(0, 1, N)
+                    x0_fine, y0_fine = splev(u_fine, tck0)
+                    x1_fine, y1_fine = splev(u_fine, tck1)
+
+                    diffx = x0_fine - x1_fine
+                    diffy = y0_fine - y1_fine
+
+                    diffx = diffx*diffx
+                    diffy = diffy*diffy
+                    d = np.sum(np.sqrt(diffx + diffy)) / float(N)
+                    spline_distances.append(d)
+                    print(f'Spline distance for streamline {i}: {d}')
+                except Exception as e:
+                    print(f"Error calculating spline distance for streamline {i}: {e}")
+                    spline_distances.append(0.0)
+            else:
+                spline_distances.append(0.0)
+                print(f"Insufficient data for spline calculation for streamline {i}")
 
         distances = []
         for i in range(num_streamlines):
-            comp_streamline = segment_compressed_pairs[i]
-            uncomp_streamline = segment_uncompressed_pair[i]
             distance = 0
             distances.append(distance)
             print(f"Distance between streamline {i}: {distance}")
@@ -336,6 +379,7 @@ def main():
             segment_uncompressed_pair,
             distances,
             step=current_step,
+            spline_distances=spline_distances,
         )
 
         r_low.end_step()
