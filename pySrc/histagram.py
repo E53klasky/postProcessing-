@@ -9,7 +9,6 @@ import WrighterClass
 from mpi4py import MPI
 
 
-# Fix it to wright out properly
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate histogram from ADIOS2 BP file variable."

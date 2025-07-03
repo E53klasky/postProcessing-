@@ -7,7 +7,6 @@ from rich.traceback import install
 from ReaderClass import Reader
 
 
-# make cleaner/DONE
 def parse_arguments():
     install()
     parser = argparse.ArgumentParser(description="Making contour plots")

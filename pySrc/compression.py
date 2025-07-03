@@ -6,8 +6,7 @@ import numpy as np
 from mpi4py import MPI
 
 
-# add timers and print out to text files
-# clean up
+# TODO: wright out every read step, computution, and wright step
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate streamline plots from ADIOS2 BP5 files"

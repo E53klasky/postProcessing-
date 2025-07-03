@@ -8,6 +8,7 @@ import WrighterClass
 from mpi4py import MPI
 
 
+# TODO: wright out every read step, computution, and wright step
 def curl_2d(vx, vy):
     return np.gradient(vy, axis=1, edge_order=2) - np.gradient(vx, axis=0, edge_order=2)
 
