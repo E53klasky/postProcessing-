@@ -8,27 +8,26 @@ from rich.traceback import install
 from ReaderClass import Reader
 from WrighterClass import Writer
 from matplotlib.collections import LineCollection
-# how to deal with mutliple errors
-# make this work with 3d as well maybe a new code
-# make this work with more than one plot
 
+
+# make this work with 3d as well maybe a new code
+# clean up
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(
             f"Warning: Only {len(offsets)} offset(s) found. Treating all data as one streamline."
         )
-        
+
         if len(x_coords) > 0:
             streamlines = [np.column_stack((x_coords, y_coords))]
         else:
             streamlines = []
         return streamlines
-    
-   
+
     L = np.max(offsets)
-    n_points_per_streamline = L 
+    n_points_per_streamline = L
     n_streamlines = len(x_coords) // n_points_per_streamline
-  
+
     streamlines = []
     for i in range(n_streamlines):
         start = i * n_points_per_streamline
@@ -114,15 +113,12 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
-    
- 
+
     fig_streamlines, ax_streamlines = plt.subplots(figsize=(12, 10))
-    
 
     colors_comp = plt.cm.Reds(np.linspace(0.4, 0.9, len(segments_compressed)))
     colors_uncomp = plt.cm.Greens(np.linspace(0.4, 0.9, len(segments_uncompressed)))
-    
-  
+
     for i, segment in enumerate(segments_compressed):
         if len(segment) > 0:
             ax_streamlines.plot(
@@ -131,8 +127,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 linestyle="-",
                 color=colors_comp[i],
                 linewidth=2,
-                label=f"Compressed {i+1}" if i < 5 else "",  
- 
+                label=f"Compressed {i+1}" if i < 5 else "",
             )
 
     for i, segment in enumerate(segments_uncompressed):
@@ -143,10 +138,9 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 linestyle="--",
                 color=colors_uncomp[i],
                 linewidth=1.5,
-                label=f"Uncompressed {i+1}" if i < 5 else "", 
-  
+                label=f"Uncompressed {i+1}" if i < 5 else "",
             )
-    
+
     ax_streamlines.set_xlabel("X", fontsize=12)
     ax_streamlines.set_ylabel("Y", fontsize=12)
     title_str = (
@@ -155,7 +149,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
         else f"Streamlines Comparison - {len(segments_compressed)} streamlines"
     )
     ax_streamlines.set_title(title_str, fontsize=14)
-    ax_streamlines.legend(fontsize=10, loc='best')
+    ax_streamlines.legend(fontsize=10, loc="best")
     ax_streamlines.grid(True)
     plt.tight_layout()
 
@@ -168,9 +162,10 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
     print(f"Saving streamlines plot to: {streamlines_path}")
     fig_streamlines.savefig(streamlines_path, dpi=300, bbox_inches="tight")
     plt.close(fig_streamlines)
-    
 
-    for idx, (comp_segment, uncomp_segment) in enumerate(zip(segments_compressed, segments_uncompressed)):
+    for idx, (comp_segment, uncomp_segment) in enumerate(
+        zip(segments_compressed, segments_uncompressed)
+    ):
         if len(comp_segment) > 1 and len(uncomp_segment) > 0:
 
             pointwise_errors = []
@@ -178,7 +173,6 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 dists = np.linalg.norm(uncomp_segment - pt, axis=1)
                 pointwise_errors.append(np.min(dists))
             pointwise_errors = np.array(pointwise_errors)
-
 
             segments = [
                 [comp_segment[i], comp_segment[i + 1]]
@@ -193,12 +187,21 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
             cbar = plt.colorbar(line, ax=ax)
             cbar.set_label("Point-wise Error", fontsize=12)
 
-            ax.plot(uncomp_segment[:, 0], uncomp_segment[:, 1], 
-                   linestyle="--", color="black", linewidth=1.5, 
-                   label="Uncompressed Reference")
+            ax.plot(
+                uncomp_segment[:, 0],
+                uncomp_segment[:, 1],
+                linestyle="--",
+                color="black",
+                linewidth=1.5,
+                label="Uncompressed Reference",
+            )
 
-            ax.set_xlim(np.min(comp_segment[:, 0])-0.1, np.max(comp_segment[:, 0])+0.1)
-            ax.set_ylim(np.min(comp_segment[:, 1])-0.1, np.max(comp_segment[:, 1])+0.1)
+            ax.set_xlim(
+                np.min(comp_segment[:, 0]) - 0.1, np.max(comp_segment[:, 0]) + 0.1
+            )
+            ax.set_ylim(
+                np.min(comp_segment[:, 1]) - 0.1, np.max(comp_segment[:, 1]) + 0.1
+            )
             ax.set_xlabel("X", fontsize=12)
             ax.set_ylabel("Y", fontsize=12)
             title_str = (
@@ -220,8 +223,9 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
             print(f"Saving error-highlighted streamline {idx+1} to: {path}")
             fig.savefig(path, dpi=300, bbox_inches="tight")
             plt.close(fig)
-    
+
     return errors
+
 
 def parse_arguments():
     install()
@@ -253,7 +257,7 @@ def parse_arguments():
         default="reader2",
         help="IO Name for the first Adios file (default: reader1)",
     )
-    
+
     parser.add_argument(
         "--xml", "-x", type=str, default=None, help="ADIOS2 XML config file (optional)"
     )
@@ -264,12 +268,13 @@ def parse_arguments():
     parser.add_argument(
         "--var_y", type=str, required=True, help="Variable name for y coordinates"
     )
-    
+
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
 
     return parser.parse_args()
+
 
 def main():
     args = parse_arguments()
@@ -287,8 +292,7 @@ def main():
             break
         current_step = r_low.current_step()
         print(f"Reading step: {int(current_step)}")
-       
-        
+
         r_high.set_read_vars([args.var_x, args.var_y, args.var_offset])
         r_low.set_read_vars([args.var_x, args.var_y, args.var_offset])
 
@@ -309,30 +313,29 @@ def main():
         segment_uncompressed_offset = r_high.read_step(args.var_offset)
 
         segment_compressed_pairs = extract_streamlines_from_segments(
-        segment_compressed_x, segment_compressed_y, segment_compressed_offset
+            segment_compressed_x, segment_compressed_y, segment_compressed_offset
         )
 
         segment_uncompressed_pair = extract_streamlines_from_segments(
-        segment_uncompressed_x, segment_uncompressed_y, segment_uncompressed_offset
+            segment_uncompressed_x, segment_uncompressed_y, segment_uncompressed_offset
         )
 
         num_streamlines = len(segment_uncompressed_pair)
         print(f"Number of streamlines: {num_streamlines}")
-        
+
         distances = []
         for i in range(num_streamlines):
             comp_streamline = segment_compressed_pairs[i]
             uncomp_streamline = segment_uncompressed_pair[i]
-            distance = 0  
+            distance = 0
             distances.append(distance)
             print(f"Distance between streamline {i}: {distance}")
 
-
         error = RK_visualization(
-            segment_compressed_pairs,    
-            segment_uncompressed_pair,   
-            distances,                  
-            step=current_step,  
+            segment_compressed_pairs,
+            segment_uncompressed_pair,
+            distances,
+            step=current_step,
         )
 
         r_low.end_step()

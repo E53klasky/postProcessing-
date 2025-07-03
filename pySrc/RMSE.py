@@ -6,6 +6,7 @@ import ReaderClass
 import WrighterClass
 from mpi4py import MPI
 
+
 # NOTE only works in parallel for same sizes
 def RMSE2D(GT, E, step, var_NAME, skip_factor=2):
     error = np.zeros_like(E)
@@ -106,7 +107,6 @@ def parse_arguments():
         help="The skip factor for the higher resolution",
     )
     return parser.parse_args()
-
 
 
 def main():

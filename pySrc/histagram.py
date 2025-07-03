@@ -40,16 +40,13 @@ def parse_arguments():
     )
     parser.add_argument(
         "--Declare_Write_IO", help="IO name for writing output", required=True
-    ) 
+    )
     parser.add_argument(
         "--output_file",
         "-o",
         default="bins.bp",
         help="Output BP file for the result",
     )
-    
-
-    
 
     return parser.parse_args()
 
@@ -77,7 +74,7 @@ def main():
 
         current_step = r.current_step()
         print(f"Reading step: {int(current_step)}")
-        
+
         r.set_read_vars([var])
         local_data = r.read_step(var)
 
@@ -95,7 +92,7 @@ def main():
 
         global_hist = np.empty_like(local_hist)
         comm.Reduce(local_hist, global_hist, op=MPI.SUM, root=0)
-      
+
         if global_min == global_max:
             global_max += 1e-6
 
@@ -120,11 +117,8 @@ def main():
             w.begin_step()
             w.write("bins", global_hist)
             w.end_step()
-            
-          
-  
+
         r.end_step()
-        
 
     r.close()
     if rank == 0:
