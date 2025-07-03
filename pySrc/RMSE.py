@@ -6,7 +6,7 @@ import ReaderClass
 import WrighterClass
 from mpi4py import MPI
 
-
+# NOTE only works in parallel for same sizes
 def RMSE2D(GT, E, step, var_NAME, skip_factor=2):
     error = np.zeros_like(E)
     diff_sq = 0
@@ -108,7 +108,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# something is wrong here
+
 def main():
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
