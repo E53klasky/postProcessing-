@@ -9,7 +9,8 @@ from ReaderClass import Reader
 from matplotlib.collections import LineCollection
 
 
-# make this work with 3d as well maybe a new code
+# add daves distance error
+# make this work with 3d maybe
 # clean up
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:

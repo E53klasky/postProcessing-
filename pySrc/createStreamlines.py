@@ -8,109 +8,203 @@ import WrighterClass
 import re
 
 
-# clean up code and make this work for 3d
-# make this handle 3d 
 def rk4_streamline_from_grid(
-    x0, y0, vx, vy, max_len=3.0, dt=0.01, max_steps=1000, xlim=None, ylim=None
+    x0,
+    y0,
+    z0,
+    vx,
+    vy,
+    vz=None,
+    max_len=10.0,
+    dt=0.01,
+    max_steps=1000,
+    xlim=None,
+    ylim=None,
+    zlim=None,
 ):
-    xgrid = np.linspace(0, 1, vx.shape[1])
-    ygrid = np.linspace(0, 1, vx.shape[0])
+    is_3d = vz is not None and z0 is not None
 
-    interp_vx = RegularGridInterpolator((ygrid, xgrid), vx)
-    interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
+    if is_3d:
+        zgrid = np.linspace(0, 1, vx.shape[0])
+        ygrid = np.linspace(0, 1, vx.shape[1])
+        xgrid = np.linspace(0, 1, vx.shape[2])
 
-    def vector_field(x, y):
-        point = np.array([y, x])
-        u = (
-            interp_vx(point)[0]
-            if isinstance(interp_vx(point), np.ndarray)
-            else float(interp_vx(point))
-        )
-        v = (
-            interp_vy(point)[0]
-            if isinstance(interp_vy(point), np.ndarray)
-            else float(interp_vy(point))
-        )
-        norm = np.hypot(u, v)
-        if norm < 1e-8:
-            return np.array([0.0, 0.0])
-        return np.array([u, v]) / norm
+        interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx)
+        interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy)
+        interp_vz = RegularGridInterpolator((zgrid, ygrid, xgrid), vz)
+
+        def vector_field(x, y, z):
+            point = np.array([z, y, x])
+            try:
+                u = float(interp_vx(point).item())
+                v = float(interp_vy(point).item())
+                w = float(interp_vz(point).item())
+                norm = np.linalg.norm([u, v, w])
+                if norm < 1e-8:
+                    return np.array([0.0, 0.0, 0.0])
+                return np.array([u, v, w]) / norm
+            except ValueError:
+                return np.array([0.0, 0.0, 0.0])
+
+    else:
+        ygrid = np.linspace(0, 1, vx.shape[0])
+        xgrid = np.linspace(0, 1, vx.shape[1])
+
+        interp_vx = RegularGridInterpolator((ygrid, xgrid), vx)
+        interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
+
+        def vector_field(x, y):
+            point = np.array([y, x])
+            try:
+                u = float(interp_vx(point).item())
+                v = float(interp_vy(point).item())
+                norm = np.hypot(u, v)
+                if norm < 1e-8:
+                    return np.array([0.0, 0.0])
+                return np.array([u, v]) / norm
+            except ValueError:
+                return np.array([0.0, 0.0])
 
     paths = []
     coords_x = []
     coords_y = []
-    
-    
+    coords_z = []
+    offsets = [0]
+
     for i in range(len(x0)):
         x = x0[i]
         y = y0[i]
+        z = z0[i] if is_3d else None
+
         cnt = 0
         arc_len = 0
-        path = [(x, y)]
+        path = [(x, y, z)] if is_3d else [(x, y)]
         path_x = [x]
         path_y = [y]
-        offsets = [0]
+        path_z = [z] if is_3d else []
+
         for _ in range(max_steps):
             cnt += 1
-            
-            k1 = vector_field(x, y)
-            k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
-            k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
-            k4 = vector_field(x + dt * k3[0], y + dt * k3[1])
-            dx, dy = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-            x_prev = x
-            y_prev = y
 
-            x += dx
-            y += dy
-            arc_len += np.sqrt(pow((x - x_prev), 2) + pow((y - y_prev), 2))
+            if is_3d:
+                k1 = vector_field(x, y, z)
+                k2 = vector_field(
+                    x + dt * k1[0] / 2, y + dt * k1[1] / 2, z + dt * k1[2] / 2
+                )
+                k3 = vector_field(
+                    x + dt * k2[0] / 2, y + dt * k2[1] / 2, z + dt * k2[2] / 2
+                )
+                k4 = vector_field(x + dt * k3[0], y + dt * k3[1], z + dt * k3[2])
+                dx, dy, dz = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+                x_prev, y_prev, z_prev = x, y, z
+                x += dx
+                y += dy
+                z += dz
+                arc_len += np.sqrt(
+                    (x - x_prev) ** 2 + (y - y_prev) ** 2 + (z - z_prev) ** 2
+                )
+            else:
+                k1 = vector_field(x, y)
+                k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
+                k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
+                k4 = vector_field(x + dt * k3[0], y + dt * k3[1])
+                dx, dy = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+                x_prev, y_prev = x, y
+                x += dx
+                y += dy
+                arc_len += np.sqrt((x - x_prev) ** 2 + (y - y_prev) ** 2)
 
             if xlim and (x < xlim[0] or x > xlim[1]):
-                print("xlim")
                 break
             if ylim and (y < ylim[0] or y > ylim[1]):
-                print("ylim")
                 break
-            path.append((x, y))
+            if is_3d and zlim and (z < zlim[0] or z > zlim[1]):
+                break
+
+            if is_3d:
+                path.append((x, y, z))
+                path_z.append(z)
+            else:
+                path.append((x, y))
+
             path_x.append(x)
             path_y.append(y)
 
             if max_len > 0 and arc_len >= max_len:
-                print("arc length")
                 break
 
-        print(f"Arc length: {arc_len}")
-        print("--" * 60)
-        print(f"Number of RK4 steps: {cnt}")
-        print("--" * 60)
-        print(f"Number of points in streamline segments: {len(path)}")
         paths.append(path)
-        offset = len(path_x)
-        offsets.append(offset)
+        offsets.append(len(path_x))
         coords_x.append(path_x)
         coords_y.append(path_y)
+        if is_3d:
+            coords_z.append(path_z)
 
-    return (np.array(offsets), np.array(coords_x), np.array(coords_y))
-
-def rk4_2D(x0,y0,vx,vy) :
-    return rk4_streamline_from_grid(x0=x0, y0=y0, z0=None, vx=vx, vy=vy, vz=None, )
-
-def rk4_3D(x0,y0,z0, vx,vy,vz) :
-    return rk4_streamline_from_grid(x0=x0, y0=y0, z0=z0, vx=vx, vy=vy, vz=vz, )
-
+    return (
+        np.array(offsets),
+        np.array(coords_x, dtype=object),
+        np.array(coords_y, dtype=object),
+        np.array(coords_z, dtype=object) if is_3d else None,
+    )
 
 
+def rk4_2D(x0, y0, vx, vy, max_len, dt, max_steps, xlim, ylim):
+    return rk4_streamline_from_grid(
+        x0=x0,
+        y0=y0,
+        z0=None,
+        vx=vx,
+        vy=vy,
+        vz=None,
+        max_len=max_len,
+        dt=dt,
+        max_steps=max_steps,
+        xlim=xlim,
+        ylim=ylim,
+        zlim=None,
+    )
 
-def parse_seed_points(seed_str):
-    matches = re.findall(r"\(([^,]+),([^)]+)\)", seed_str)
-    if not matches:
-        raise ValueError("Invalid seed format. Use format like: '(0.1,0.5),(0.4,0.4)'")
-    x_vals = []
-    y_vals = []
-    for x, y in matches:
-        x_vals.append(float(x.strip()))
-        y_vals.append(float(y.strip()))
-    return np.array(x_vals), np.array(y_vals)
+
+def rk4_3D(x0, y0, z0, vx, vy, vz, max_len, dt, max_steps, xlim, ylim, zlim):
+    return rk4_streamline_from_grid(
+        x0=x0,
+        y0=y0,
+        z0=z0,
+        vx=vx,
+        vy=vy,
+        vz=vz,
+        max_len=max_len,
+        dt=dt,
+        max_steps=max_steps,
+        xlim=xlim,
+        ylim=ylim,
+        zlim=zlim,
+    )
+
+
+def parse_seed_points(seed_str, num_dims=2):
+    if num_dims == 2:
+        matches = re.findall(r"\(\s*([0-9.eE+-]+)\s*,\s*([0-9.eE+-]+)\s*\)", seed_str)
+        if not matches:
+            raise ValueError(
+                "Invalid 2D seed format. Use format like: '(0.1,0.5),(0.4,0.4)'"
+            )
+        x_vals, y_vals = zip(*[(float(x), float(y)) for x, y in matches])
+        return np.array(x_vals), np.array(y_vals), None
+    elif num_dims == 3:
+        matches = re.findall(
+            r"\(\s*([0-9.eE+-]+)\s*,\s*([0-9.eE+-]+)\s*,\s*([0-9.eE+-]+)\s*\)", seed_str
+        )
+        if not matches:
+            raise ValueError(
+                "Invalid 3D seed format. Use format like: '(0.1,0.5,0.3),(0.4,0.4,0.6)'"
+            )
+        x_vals, y_vals, z_vals = zip(
+            *[(float(x), float(y), float(z)) for x, y, z in matches]
+        )
+        return np.array(x_vals), np.array(y_vals), np.array(z_vals)
+    else:
+        raise ValueError("Only 2D or 3D seed points supported.")
 
 
 def parse_arguments():
@@ -146,8 +240,9 @@ def parse_arguments():
         "-s",
         type=str,
         required=True,
-        help="Comma-separated list of seed points in the format '(x1,y1),(x2,y2)' (REQUIRED)",
+        help="Comma-separated list of seed points: 2D '(x1,y1),(x2,y2)' or 3D '(x1,y1,z1),(x2,y2,z2)' (REQUIRED)",
     )
+
     parser.add_argument(
         "--io_read_name",
         "-ior",
@@ -200,7 +295,12 @@ def main():
     io_name = args.io_read_name
     io_write_name = args.io_write_name
     var_names = [v.strip() for v in args.vars.split(",")]
-    x_seeds, y_seeds = parse_seed_points(args.seeds_points)
+
+    is_3d = len(var_names) == 3
+    x_seeds, y_seeds, z_seeds = parse_seed_points(
+        args.seeds_points, num_dims=3 if is_3d else 2
+    )
+
     output_file = args.output
     dt = args.step_size
     num_rk_steps = args.num_RK_steps
@@ -213,7 +313,6 @@ def main():
 
     print("Making streamlines Now")
 
-    not_defined = True
     while True:
         status = reader.begin_step()
 
@@ -236,37 +335,59 @@ def main():
             data.append(reader.read_step(var_names[i]))
             if len(data[i].shape) == 3 and data[i].shape[0] == 1:
                 data[i] = np.squeeze(data[i])
-        # do this if only vx and vy
-        if(len(data) == 2):
-            offsets, coords_x, coords_y = rk4_streamline_from_grid(
+
+        if len(data) == 2:
+            offsets, coords_x, coords_y, coords_z = rk4_2D(
                 x_seeds,
                 y_seeds,
                 data[0],
                 data[1],
-                max_len=1000,
+                max_len=10,
                 dt=dt,
                 max_steps=num_rk_steps,
+                xlim=None,
+                ylim=None,
             )
-             
+            coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
+            coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
+            offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
+
+            coords_x = coords_x.flatten()
+            coords_y = coords_y.flatten()
+            offsets = offsets.flatten()
+
+            wrigher.write("coords_x", coords_x)
+            wrigher.write("coords_y", coords_y)
+            wrigher.write("offsets", offsets)
+            wrigher.end_step()
+            reader.end_step()
+
         else:
-            print("do 3d")
-            
+            offsets, coords_x, coords_y, coords_z = rk4_3D(
+                x_seeds,
+                y_seeds,
+                z_seeds,
+                data[0],
+                data[1],
+                data[2],
+                max_len=10,
+                dt=dt,
+                max_steps=num_rk_steps,
+                xlim=None,
+                ylim=None,
+                zlim=None,
+            )
+            coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
+            coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
+            coords_z = np.ascontiguousarray(np.array(coords_z, dtype=np.float64))
+            offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
 
-        # Move this into  the 2d and make this for 3d 
-        coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
-        coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
-        offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
-
-        coords_x = coords_x.flatten()
-        coords_y = coords_y.flatten()
-        offsets = offsets.flatten()
-
-        # I would have
-        wrigher.write("coords_x", coords_x)
-        wrigher.write("coords_y", coords_y)
-        wrigher.write("offsets", offsets)
-        wrigher.end_step()
-        reader.end_step()
+            wrigher.write("coords_x", coords_x)
+            wrigher.write("coords_y", coords_y)
+            wrigher.write("coords_z", coords_z)
+            wrigher.write("offsets", offsets)
+            wrigher.end_step()
+            reader.end_step()
 
     reader.close()
     wrigher.close()

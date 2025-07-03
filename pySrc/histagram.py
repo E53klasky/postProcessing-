@@ -123,7 +123,7 @@ def main():
     if rank == 0:
         w.close()
 
-    print(f"Histogram finsished successfully")
+    print(f"Histogram finsished successfully outputed to ./{args.output_file}")
 
 
 if __name__ == "__main__":
