@@ -38,6 +38,9 @@ def parse_arguments():
     parser.add_argument(
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
     )
+    
+
+    
 
     return parser.parse_args()
 
@@ -55,7 +58,7 @@ def main():
     var = args.var
 
     r = ReaderClass.Reader(args.IO_Name1, args.file1, args.xml, comm=comm)
-
+   
     while True:
         status = r.begin_step()
 
@@ -64,7 +67,7 @@ def main():
 
         current_step = r.current_step()
         print(f"Reading step: {int(current_step)}")
-
+        
         r.set_read_vars([var])
         local_data = r.read_step(var)
 
@@ -82,7 +85,7 @@ def main():
 
         global_hist = np.empty_like(local_hist)
         comm.Reduce(local_hist, global_hist, op=MPI.SUM, root=0)
-
+      
         if global_min == global_max:
             global_max += 1e-6
 
@@ -104,12 +107,15 @@ def main():
             plt.savefig(f"../RESULTS/{var}_step_{current_step}_histogram.png")
             print(f"output saved to ../RESULTS/{var}_step_{current_step}_histogram.png")
             plt.close()
-
+            
+          
+  
         r.end_step()
+        
 
     r.close()
 
-    print(f"Histogram outputted successfully")
+    print(f"Histogram finsished successfully")
 
 
 if __name__ == "__main__":
