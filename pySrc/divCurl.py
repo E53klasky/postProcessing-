@@ -24,8 +24,8 @@ def exchange_ghost_cells(data, comm, axis=2, ghost_width=1):
         s[axis] = idx_slice
         return tuple(s)
     
-    left_boundary = data[make_slice(slice(0, ghost_width), axis, data.ndim)]        # First ghost_width slices
-    right_boundary = data[make_slice(slice(-ghost_width, None), axis, data.ndim)]   # Last ghost_width slices
+    left_boundary = data[make_slice(slice(0, ghost_width), axis, data.ndim)]        
+    right_boundary = data[make_slice(slice(-ghost_width, None), axis, data.ndim)]   
 
     send_requests = []
     if left_rank != MPI.PROC_NULL:
@@ -118,13 +118,13 @@ def curl_3d_with_ghosts(vx, vy, vz, comm):
 
 def divergence_with_ghosts(vx, vy, vz, comm):
     if vz is None:  
-        div_x = compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2)  # ∂vx/∂x
-        div_y = compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2)  # ∂vy/∂y
+        div_x = compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2)  
+        div_y = compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2)  
         return div_x + div_y
     else:  
-        div_x = compute_gradient_with_ghosts(vx, comm, axis=2, edge_order=2)  # ∂vx/∂x
-        div_y = compute_gradient_with_ghosts(vy, comm, axis=1, edge_order=2)  # ∂vy/∂y
-        div_z = compute_gradient_with_ghosts(vz, comm, axis=0, edge_order=2)  # ∂vz/∂z
+        div_x = compute_gradient_with_ghosts(vx, comm, axis=2, edge_order=2)  
+        div_y = compute_gradient_with_ghosts(vy, comm, axis=1, edge_order=2)  
+        div_z = compute_gradient_with_ghosts(vz, comm, axis=0, edge_order=2)  
         return div_x + div_y + div_z
 
 
