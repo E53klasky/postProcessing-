@@ -9,6 +9,7 @@ import re
 
 
 # clean up code and make this work for 3d
+# make this handle 3d 
 def rk4_streamline_from_grid(
     x0, y0, vx, vy, max_len=3.0, dt=0.01, max_steps=1000, xlim=None, ylim=None
 ):
@@ -38,8 +39,8 @@ def rk4_streamline_from_grid(
     paths = []
     coords_x = []
     coords_y = []
-    offsets = []
-    offset = 0
+    
+    
     for i in range(len(x0)):
         x = x0[i]
         y = y0[i]
@@ -48,10 +49,10 @@ def rk4_streamline_from_grid(
         path = [(x, y)]
         path_x = [x]
         path_y = [y]
-        offsets.append(offset)
+        offsets = [0]
         for _ in range(max_steps):
             cnt += 1
-            offset += 1
+            
             k1 = vector_field(x, y)
             k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
             k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
@@ -84,10 +85,20 @@ def rk4_streamline_from_grid(
         print("--" * 60)
         print(f"Number of points in streamline segments: {len(path)}")
         paths.append(path)
+        offset = len(path_x)
+        offsets.append(offset)
         coords_x.append(path_x)
         coords_y.append(path_y)
 
-    return (np.array(coords_x), np.array(coords_y), np.array(offsets))
+    return (np.array(offsets), np.array(coords_x), np.array(coords_y))
+
+def rk4_2D(x0,y0,vx,vy) :
+    return rk4_streamline_from_grid(x0=x0, y0=y0, z0=None, vx=vx, vy=vy, vz=None, )
+
+def rk4_3D(x0,y0,z0, vx,vy,vz) :
+    return rk4_streamline_from_grid(x0=x0, y0=y0, z0=z0, vx=vx, vy=vy, vz=vz, )
+
+
 
 
 def parse_seed_points(seed_str):
@@ -225,18 +236,23 @@ def main():
             data.append(reader.read_step(var_names[i]))
             if len(data[i].shape) == 3 and data[i].shape[0] == 1:
                 data[i] = np.squeeze(data[i])
+        # do this if only vx and vy
+        if(len(data) == 2):
+            offsets, coords_x, coords_y = rk4_streamline_from_grid(
+                x_seeds,
+                y_seeds,
+                data[0],
+                data[1],
+                max_len=1000,
+                dt=dt,
+                max_steps=num_rk_steps,
+            )
+             
+        else:
+            print("do 3d")
+            
 
-        coords_x, coords_y, offsets = rk4_streamline_from_grid(
-            x_seeds,
-            y_seeds,
-            data[0],
-            data[1],
-            max_len=1000,
-            dt=dt,
-            max_steps=num_rk_steps,
-        )
-
-        # How to get this to work in 3d???????????????????????????
+        # Move this into  the 2d and make this for 3d 
         coords_x = np.ascontiguousarray(np.array(coords_x, dtype=np.float64))
         coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
         offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))

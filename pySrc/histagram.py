@@ -38,6 +38,15 @@ def parse_arguments():
     parser.add_argument(
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
     )
+    parser.add_argument(
+        "--Declare_Write_IO", help="IO name for writing output", required=True
+    ) 
+    parser.add_argument(
+        "--output_file",
+        "-o",
+        default="bins.bp",
+        help="Output BP file for the result",
+    )
     
 
     
@@ -58,7 +67,8 @@ def main():
     var = args.var
 
     r = ReaderClass.Reader(args.IO_Name1, args.file1, args.xml, comm=comm)
-   
+    if rank == 0:
+        w = WrighterClass.Writer(args.Declare_Write_IO, args.output_file, args.xml)
     while True:
         status = r.begin_step()
 
@@ -107,6 +117,9 @@ def main():
             plt.savefig(f"../RESULTS/{var}_step_{current_step}_histogram.png")
             print(f"output saved to ../RESULTS/{var}_step_{current_step}_histogram.png")
             plt.close()
+            w.begin_step()
+            w.write("bins", global_hist)
+            w.end_step()
             
           
   
@@ -114,6 +127,8 @@ def main():
         
 
     r.close()
+    if rank == 0:
+        w.close()
 
     print(f"Histogram finsished successfully")
 
