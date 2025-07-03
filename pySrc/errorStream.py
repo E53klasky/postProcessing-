@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from rich.traceback import install
 from ReaderClass import Reader
-from WrighterClass import Writer
 from matplotlib.collections import LineCollection
 
 
@@ -75,9 +74,9 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
         )
         ax.set_yscale("log")
         title = (
-            f"Point-wise Error Distribution (Step {step:04d})"
+            f"RK step errors at (Step {step:04d})"
             if step is not None
-            else "Point-wise Error Distribution"
+            else "RK step errors"
         )
         ax.set_title(title, fontsize=14)
         ax.set_xlabel("RK steps", fontsize=12)
@@ -92,15 +91,15 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None)
             ha="center",
             fontsize=14,
         )
-        ax.set_title("Point-wise Error (No Data)", fontsize=14)
+        ax.set_title("RK step errors (No Data)", fontsize=14)
 
     filename = (
-        f"pointwise_errors_step_{step:04d}.png"
+        f"RK_step_erros_at_step_{step:04d}.png"
         if step is not None
-        else "pointwise_errors.png"
+        else "RK_step_erros.png"
     )
     filepath = os.path.join(output_dir, filename)
-    print(f"Saving point-wise errors plot to: {filepath}")
+    print(f"Saving RK step errors plot to: {filepath}")
     plt.savefig(filepath, dpi=300, bbox_inches="tight")
     plt.close(fig)
     return errors
@@ -127,7 +126,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 linestyle="-",
                 color=colors_comp[i],
                 linewidth=2,
-                label=f"Compressed {i+1}" if i < 5 else "",
+                label=f"low res {i+1}" if i < 5 else "",
             )
 
     for i, segment in enumerate(segments_uncompressed):
@@ -138,7 +137,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 linestyle="--",
                 color=colors_uncomp[i],
                 linewidth=1.5,
-                label=f"Uncompressed {i+1}" if i < 5 else "",
+                label=f"high res {i+1}" if i < 5 else "",
             )
 
     ax_streamlines.set_xlabel("X", fontsize=12)
@@ -185,7 +184,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
             line = ax.add_collection(lc)
 
             cbar = plt.colorbar(line, ax=ax)
-            cbar.set_label("Point-wise Error", fontsize=12)
+            cbar.set_label("RK step Error", fontsize=12)
 
             ax.plot(
                 uncomp_segment[:, 0],
@@ -193,7 +192,7 @@ def RK_visualization(segments_compressed, segments_uncompressed, distances, step
                 linestyle="--",
                 color="black",
                 linewidth=1.5,
-                label="Uncompressed Reference",
+                label="low res Reference",
             )
 
             ax.set_xlim(
