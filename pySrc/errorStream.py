@@ -9,6 +9,7 @@ from ReaderClass import Reader
 from matplotlib.collections import LineCollection
 from scipy.interpolate import splprep, splev
 
+
 # make this work with 3d maybe
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
@@ -36,7 +37,9 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     return streamlines
 
 
-def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None, spline_distances=None):
+def plot_pointwise_errors(
+    segments_compressed, segments_uncompressed, step=None, spline_distances=None
+):
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
@@ -72,7 +75,7 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None,
             color="blue",
         )
         ax.set_yscale("log")
-        
+
         if spline_distances is not None and len(spline_distances) > 0:
             distances_str = ", ".join([f"{d:.6f}" for d in spline_distances])
             title = (
@@ -113,9 +116,18 @@ def plot_pointwise_errors(segments_compressed, segments_uncompressed, step=None,
     return errors
 
 
-def RK_visualization(segments_compressed, segments_uncompressed, distances, step=None, spline_distances=None):
+def RK_visualization(
+    segments_compressed,
+    segments_uncompressed,
+    distances,
+    step=None,
+    spline_distances=None,
+):
     errors = plot_pointwise_errors(
-        segments_compressed, segments_uncompressed, step=step, spline_distances=spline_distances
+        segments_compressed,
+        segments_uncompressed,
+        step=step,
+        spline_distances=spline_distances,
     )
 
     output_dir = "../RESULTS"
@@ -279,9 +291,14 @@ def parse_arguments():
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
-    
+
     parser.add_argument(
-        "--num_spline","-N" , default= 1000, type=int, required=True, help="Number of spile points to interploate"
+        "--num_spline",
+        "-N",
+        default=1000,
+        type=int,
+        required=True,
+        help="Number of spile points to interploate",
     )
 
     return parser.parse_args()
@@ -333,18 +350,21 @@ def main():
 
         num_streamlines = len(segment_uncompressed_pair)
         print(f"Number of streamlines: {num_streamlines}")
-        
 
         spline_distances = []
         for i in range(num_streamlines):
-            if i < len(segment_compressed_pairs) and len(segment_compressed_pairs[i]) > 1 and len(segment_uncompressed_pair[i]) > 1:
+            if (
+                i < len(segment_compressed_pairs)
+                and len(segment_compressed_pairs[i]) > 1
+                and len(segment_uncompressed_pair[i]) > 1
+            ):
                 try:
 
                     comp_x = segment_compressed_pairs[i][:, 0]
                     comp_y = segment_compressed_pairs[i][:, 1]
                     uncomp_x = segment_uncompressed_pair[i][:, 0]
                     uncomp_y = segment_uncompressed_pair[i][:, 1]
-                    
+
                     tck0, u0 = splprep([uncomp_x, uncomp_y], s=0)
                     tck1, u1 = splprep([comp_x, comp_y], s=0)
 
@@ -356,11 +376,11 @@ def main():
                     diffx = x0_fine - x1_fine
                     diffy = y0_fine - y1_fine
 
-                    diffx = diffx*diffx
-                    diffy = diffy*diffy
+                    diffx = diffx * diffx
+                    diffy = diffy * diffy
                     d = np.sum(np.sqrt(diffx + diffy)) / float(N)
                     spline_distances.append(d)
-                    print(f'Spline distance for streamline {i}: {d}')
+                    print(f"Spline distance for streamline {i}: {d}")
                 except Exception as e:
                     print(f"Error calculating spline distance for streamline {i}: {e}")
                     spline_distances.append(0.0)

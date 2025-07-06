@@ -12,20 +12,20 @@ def exchange_ghost_cells(data, comm, axis=2, ghost_width=1):
 
     if comm is None or comm.Get_size() == 1:
         return data, (0, data.shape[axis])
-    
+
     rank = comm.Get_rank()
     size = comm.Get_size()
 
     left_rank = rank - 1 if rank > 0 else MPI.PROC_NULL
     right_rank = rank + 1 if rank < size - 1 else MPI.PROC_NULL
-    
+
     def make_slice(idx_slice, axis, ndim):
         s = [slice(None)] * ndim
         s[axis] = idx_slice
         return tuple(s)
-    
-    left_boundary = data[make_slice(slice(0, ghost_width), axis, data.ndim)]        
-    right_boundary = data[make_slice(slice(-ghost_width, None), axis, data.ndim)]   
+
+    left_boundary = data[make_slice(slice(0, ghost_width), axis, data.ndim)]
+    right_boundary = data[make_slice(slice(-ghost_width, None), axis, data.ndim)]
 
     send_requests = []
     if left_rank != MPI.PROC_NULL:
@@ -34,44 +34,46 @@ def exchange_ghost_cells(data, comm, axis=2, ghost_width=1):
     if right_rank != MPI.PROC_NULL:
         req = comm.Isend(right_boundary.copy(), dest=right_rank, tag=2)
         send_requests.append(req)
-    
+
     recv_requests = []
     left_ghost = None
     right_ghost = None
-    
+
     if left_rank != MPI.PROC_NULL:
         left_ghost = np.empty_like(left_boundary)
         req = comm.Irecv(left_ghost, source=left_rank, tag=2)
         recv_requests.append(req)
-    
+
     if right_rank != MPI.PROC_NULL:
         right_ghost = np.empty_like(right_boundary)
         req = comm.Irecv(right_ghost, source=right_rank, tag=1)
         recv_requests.append(req)
-    
+
     MPI.Request.waitall(send_requests + recv_requests)
-    
+
     extended_shape = list(data.shape)
     total_ghost_width = 0
     if left_ghost is not None:
         total_ghost_width += ghost_width
     if right_ghost is not None:
         total_ghost_width += ghost_width
-    
+
     extended_shape[axis] += total_ghost_width
     extended_data = np.empty(extended_shape, dtype=data.dtype)
-    
+
     start_idx = 0
     if left_ghost is not None:
         extended_data[make_slice(slice(0, ghost_width), axis, data.ndim)] = left_ghost
         start_idx = ghost_width
-    
+
     end_idx = start_idx + data.shape[axis]
     extended_data[make_slice(slice(start_idx, end_idx), axis, data.ndim)] = data
-    
+
     if right_ghost is not None:
-        extended_data[make_slice(slice(-ghost_width, None), axis, data.ndim)] = right_ghost
-    
+        extended_data[make_slice(slice(-ghost_width, None), axis, data.ndim)] = (
+            right_ghost
+        )
+
     return extended_data, (start_idx, end_idx)
 
 
@@ -85,14 +87,16 @@ def extract_original_data(extended_data, slice_info, axis=2):
 def compute_gradient_with_ghosts(data, comm, axis, edge_order=2):
     if axis == 2:
         ghost_width = 2 if edge_order == 2 else 1
-        extended_data, slice_info = exchange_ghost_cells(data, comm, axis=2, ghost_width=ghost_width)
-        
+        extended_data, slice_info = exchange_ghost_cells(
+            data, comm, axis=2, ghost_width=ghost_width
+        )
+
         grad_extended = np.gradient(extended_data, axis=axis, edge_order=edge_order)
 
         gradient = extract_original_data(grad_extended, slice_info, axis=2)
     else:
         gradient = np.gradient(data, axis=axis, edge_order=edge_order)
-    
+
     return gradient
 
 
@@ -103,30 +107,32 @@ def curl_2d_with_ghosts(vx, vy, comm):
 
 
 def curl_3d_with_ghosts(vx, vy, vz, comm):
-    
-    curl_x = (compute_gradient_with_ghosts(vz, comm, axis=1, edge_order=2) - 
-              compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2))
-    
-    curl_y = (compute_gradient_with_ghosts(vx, comm, axis=0, edge_order=2) - 
-              compute_gradient_with_ghosts(vz, comm, axis=2, edge_order=2))
-    
-    curl_z = (compute_gradient_with_ghosts(vy, comm, axis=2, edge_order=2) - 
-              compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2))
-    
+
+    curl_x = compute_gradient_with_ghosts(
+        vz, comm, axis=1, edge_order=2
+    ) - compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2)
+
+    curl_y = compute_gradient_with_ghosts(
+        vx, comm, axis=0, edge_order=2
+    ) - compute_gradient_with_ghosts(vz, comm, axis=2, edge_order=2)
+
+    curl_z = compute_gradient_with_ghosts(
+        vy, comm, axis=2, edge_order=2
+    ) - compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2)
+
     return curl_x, curl_y, curl_z
 
 
 def divergence_with_ghosts(vx, vy, vz, comm):
-    if vz is None:  
-        div_x = compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2)  
-        div_y = compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2)  
+    if vz is None:
+        div_x = compute_gradient_with_ghosts(vx, comm, axis=1, edge_order=2)
+        div_y = compute_gradient_with_ghosts(vy, comm, axis=0, edge_order=2)
         return div_x + div_y
-    else:  
-        div_x = compute_gradient_with_ghosts(vx, comm, axis=2, edge_order=2)  
-        div_y = compute_gradient_with_ghosts(vy, comm, axis=1, edge_order=2)  
-        div_z = compute_gradient_with_ghosts(vz, comm, axis=0, edge_order=2)  
+    else:
+        div_x = compute_gradient_with_ghosts(vx, comm, axis=2, edge_order=2)
+        div_y = compute_gradient_with_ghosts(vy, comm, axis=1, edge_order=2)
+        div_z = compute_gradient_with_ghosts(vz, comm, axis=0, edge_order=2)
         return div_x + div_y + div_z
-
 
 
 def curl_2d(vx, vy):
@@ -227,7 +233,7 @@ def main():
         if vx is None or vy is None:
             print(f"Rank {rank}: Failed to read velocity components")
             break
-            
+
         if len(var_names) == 3 and vz is None:
             print(f"Rank {rank}: Failed to read third velocity component")
             break
@@ -236,12 +242,10 @@ def main():
             vx = np.squeeze(vx)
             vy = np.squeeze(vy)
             vz = np.squeeze(vz) if vz is not None else None
-            
 
             div = divergence_with_ghosts(vx, vy, None, comm)
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
-            
-   
+
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
 
@@ -249,15 +253,14 @@ def main():
 
             div = divergence_with_ghosts(vx, vy, None, comm)
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
-            
 
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
 
-        else:  
+        else:
             div = divergence_with_ghosts(vx, vy, vz, comm)
             curl_x, curl_y, curl_z = curl_3d_with_ghosts(vx, vy, vz, comm)
-            
+
             writer.write("Div", div)
             writer.write("Curl_x", curl_x)
             writer.write("Curl_y", curl_y)
