@@ -4,14 +4,12 @@ import ReaderClass
 import WrighterClass
 import numpy as np
 from mpi4py import MPI
+import time
 
-
-# TODO: wright out every read step, computution, and wright step
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate streamline plots from ADIOS2 BP5 files"
     )
-
     parser.add_argument(
         "--bpfile1",
         "--bp1",
@@ -19,7 +17,6 @@ def parse_arguments():
         required=True,
         help="First Adios file with streamline segments (lower resolution/compressed)",
     )
-
     parser.add_argument(
         "--readIO",
         "-rio",
@@ -27,7 +24,6 @@ def parse_arguments():
         default="reader1",
         help="IO Name for the first Adios file (default: reader1)",
     )
-
     parser.add_argument(
         "--WrightIO",
         "-wio",
@@ -35,7 +31,6 @@ def parse_arguments():
         default="writer1",
         help="IO Name for the second Adios file (default: writer1)",
     )
-
     parser.add_argument(
         "--error_bound",
         "-eb",
@@ -52,7 +47,6 @@ def parse_arguments():
         required=True,
         help="Path to ADIOS2 XML configuration file (optional)",
     )
-
     parser.add_argument(
         "--output",
         "-o",
@@ -60,11 +54,10 @@ def parse_arguments():
         default="compressed.bp",
         help="Output file name (default: compressed.bp)",
     )
-
     return parser.parse_args()
 
-
 def main():
+    program_start = time.time()
     parser = parse_arguments()
     bpfile1 = parser.bpfile1
     readIO = parser.readIO
@@ -75,34 +68,60 @@ def main():
     rank = comm.Get_rank()
     size = comm.Get_size()
 
+    if rank == 0:
+        times_file = open("compress_times.txt", "w")
+        times_file.write(f"Program started at {program_start:.6f}\n")
+    else:
+        times_file = None
+
     r = ReaderClass.Reader(readIO, bpfile1, xml=xml, comm=comm)
     w = WrighterClass.Writer(WrightIO, output, xml=xml, comm=comm)
 
     flag = True
     while True:
+        step_start = time.time()
         status = r.begin_step()
         if status != adios2.bindings.StepStatus.OK:
             break
 
         current_step = r.current_step()
-        print(f"Reading step: {int(current_step)}")
+        if rank == 0:
+            times_file.write(f"\nReading step: {int(current_step)}\n")
         w.begin_step()
 
         for name, info in r.Adios_reader.available_variables().items():
+            read_start = time.time()
             r.set_read_vars([name])
             data = r.read_step(name)
-            w.write(name, data)
+            read_end = time.time()
 
+            write_start = time.time()
+            w.write(name, data)
             if flag:
                 w.write("error_bound", np.array([parser.error_bound]))
                 flag = False
+            write_end = time.time()
+
+            if rank == 0:
+                times_file.write(
+                    f"Variable: {name}, Read time: {read_end - read_start:.6f} s, "
+                    f"Write time: {write_end - write_start:.6f} s\n"
+                )
 
         r.end_step()
         w.end_step()
+        step_end = time.time()
+        if rank == 0:
+            times_file.write(f"Step time: {step_end - step_start:.6f} s\n")
+
     r.close()
     w.close()
+    program_end = time.time()
+    if rank == 0:
+        times_file.write(f"\nProgram ended at {program_end:.6f}\n")
+        times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
+        times_file.close()
     print(f"Compression completed. Output written to {output}.")
-
 
 if __name__ == "__main__":
     main()

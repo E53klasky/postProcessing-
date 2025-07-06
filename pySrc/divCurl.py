@@ -6,6 +6,7 @@ from rich.traceback import install
 import ReaderClass
 import WrighterClass
 from mpi4py import MPI
+import time
 
 
 def exchange_ghost_cells(data, comm, axis=2, ghost_width=1):
@@ -200,6 +201,7 @@ def parse_arguments():
 
 
 def main():
+    program_start = time.time()
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
@@ -210,25 +212,46 @@ def main():
         print("At least two velocity variables are required (vx, vy[, vz])")
         sys.exit(1)
 
+    if rank == 0:
+        times_file = open("div_curl_times.txt", "w")
+        times_file.write(f"Program started at {program_start:.6f}\n")
+    else:
+        times_file = None
+
     reader = ReaderClass.Reader(args.IO_Name1, args.file1, xml=args.xml, comm=comm)
     writer = WrighterClass.Writer(
         args.writeIO, bp_file=args.output, xml=args.xml, comm=comm
     )
 
     while True:
+        step_start = time.time()
         status = reader.begin_step()
         if status != adios2.bindings.StepStatus.OK:
             break
 
         current_step = reader.current_step()
+        if rank == 0:
+            times_file.write(f"\nReading step: {int(current_step)}\n")
         print(f"Reading step: {int(current_step)}")
         writer.begin_step()
 
         reader.set_read_vars(var_names)
 
+        vx_read_start = time.time()
         vx = reader.read_step(var_names[0])
+        vx_read_end = time.time()
+        
+        vy_read_start = time.time()
         vy = reader.read_step(var_names[1])
-        vz = reader.read_step(var_names[2]) if len(var_names) == 3 else None
+        vy_read_end = time.time()
+        
+        vz = None
+        vz_read_time = 0.0
+        if len(var_names) == 3:
+            vz_read_start = time.time()
+            vz = reader.read_step(var_names[2])
+            vz_read_end = time.time()
+            vz_read_time = vz_read_end - vz_read_start
 
         if vx is None or vy is None:
             print(f"Rank {rank}: Failed to read velocity components")
@@ -238,39 +261,97 @@ def main():
             print(f"Rank {rank}: Failed to read third velocity component")
             break
 
+        if rank == 0:
+            times_file.write(f"Variable: {var_names[0]}, Read time: {vx_read_end - vx_read_start:.6f} s\n")
+            times_file.write(f"Variable: {var_names[1]}, Read time: {vy_read_end - vy_read_start:.6f} s\n")
+            if len(var_names) == 3:
+                times_file.write(f"Variable: {var_names[2]}, Read time: {vz_read_time:.6f} s\n")
+
         if vx.ndim == 3 and vx.shape[0] == 1:
             vx = np.squeeze(vx)
             vy = np.squeeze(vy)
             vz = np.squeeze(vz) if vz is not None else None
 
+            div_start = time.time()
             div = divergence_with_ghosts(vx, vy, None, comm)
+            div_end = time.time()
+            
+            curl_start = time.time()
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
-
+            curl_end = time.time()
+            
+            write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
+            write_end = time.time()
+
+            if rank == 0:
+                times_file.write(
+                    f"Divergence calculation time: {div_end - div_start:.6f} s\n"
+                    f"Curl calculation time: {curl_end - curl_start:.6f} s\n"
+                    f"Write time: {write_end - write_start:.6f} s\n"
+                )
 
         elif vx.ndim == 2:
-
+            div_start = time.time()
             div = divergence_with_ghosts(vx, vy, None, comm)
+            div_end = time.time()
+            
+            curl_start = time.time()
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
-
+            curl_end = time.time()
+            
+            write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
+            write_end = time.time()
+
+            if rank == 0:
+                times_file.write(
+                    f"Divergence calculation time: {div_end - div_start:.6f} s\n"
+                    f"Curl calculation time: {curl_end - curl_start:.6f} s\n"
+                    f"Write time: {write_end - write_start:.6f} s\n"
+                )
 
         else:
+            div_start = time.time()
             div = divergence_with_ghosts(vx, vy, vz, comm)
+            div_end = time.time()
+            
+            curl_start = time.time()
             curl_x, curl_y, curl_z = curl_3d_with_ghosts(vx, vy, vz, comm)
-
+            curl_end = time.time()
+            
+            write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_x", curl_x)
             writer.write("Curl_y", curl_y)
             writer.write("Curl_z", curl_z)
+            write_end = time.time()
+
+            if rank == 0:
+                times_file.write(
+                    f"Divergence calculation time: {div_end - div_start:.6f} s\n"
+                    f"Curl calculation time: {curl_end - curl_start:.6f} s\n"
+                    f"Write time: {write_end - write_start:.6f} s\n"
+                )
 
         reader.end_step()
         writer.end_step()
+        step_end = time.time()
+        
+        if rank == 0:
+            times_file.write(f"Step time: {step_end - step_start:.6f} s\n")
 
     reader.close()
     writer.close()
+    program_end = time.time()
+    
+    if rank == 0:
+        times_file.write(f"\nProgram ended at {program_end:.6f}\n")
+        times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
+        times_file.close()
+    
     print(f"DivCurl finished successfully and saved to ./{args.output}")
 
 
