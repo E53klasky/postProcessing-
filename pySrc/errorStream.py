@@ -212,7 +212,7 @@ def RK_visualization(
                 linestyle="--",
                 color="black",
                 linewidth=1.5,
-                label="low res Reference",
+                label="High res Reference",
             )
 
             ax.set_xlim(
