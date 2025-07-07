@@ -6,6 +6,7 @@ import numpy as np
 from mpi4py import MPI
 import time
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate streamline plots from ADIOS2 BP5 files"
@@ -55,6 +56,7 @@ def parse_arguments():
         help="Output file name (default: compressed.bp)",
     )
     return parser.parse_args()
+
 
 def main():
     program_start = time.time()
@@ -122,6 +124,7 @@ def main():
         times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
         times_file.close()
     print(f"Compression completed. Output written to {output}.")
+
 
 if __name__ == "__main__":
     main()

@@ -240,11 +240,11 @@ def main():
         vx_read_start = time.time()
         vx = reader.read_step(var_names[0])
         vx_read_end = time.time()
-        
+
         vy_read_start = time.time()
         vy = reader.read_step(var_names[1])
         vy_read_end = time.time()
-        
+
         vz = None
         vz_read_time = 0.0
         if len(var_names) == 3:
@@ -262,10 +262,16 @@ def main():
             break
 
         if rank == 0:
-            times_file.write(f"Variable: {var_names[0]}, Read time: {vx_read_end - vx_read_start:.6f} s\n")
-            times_file.write(f"Variable: {var_names[1]}, Read time: {vy_read_end - vy_read_start:.6f} s\n")
+            times_file.write(
+                f"Variable: {var_names[0]}, Read time: {vx_read_end - vx_read_start:.6f} s\n"
+            )
+            times_file.write(
+                f"Variable: {var_names[1]}, Read time: {vy_read_end - vy_read_start:.6f} s\n"
+            )
             if len(var_names) == 3:
-                times_file.write(f"Variable: {var_names[2]}, Read time: {vz_read_time:.6f} s\n")
+                times_file.write(
+                    f"Variable: {var_names[2]}, Read time: {vz_read_time:.6f} s\n"
+                )
 
         if vx.ndim == 3 and vx.shape[0] == 1:
             vx = np.squeeze(vx)
@@ -275,11 +281,11 @@ def main():
             div_start = time.time()
             div = divergence_with_ghosts(vx, vy, None, comm)
             div_end = time.time()
-            
+
             curl_start = time.time()
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
             curl_end = time.time()
-            
+
             write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
@@ -296,11 +302,11 @@ def main():
             div_start = time.time()
             div = divergence_with_ghosts(vx, vy, None, comm)
             div_end = time.time()
-            
+
             curl_start = time.time()
             curl_z = curl_2d_with_ghosts(vx, vy, comm)
             curl_end = time.time()
-            
+
             write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_Z", curl_z)
@@ -317,11 +323,11 @@ def main():
             div_start = time.time()
             div = divergence_with_ghosts(vx, vy, vz, comm)
             div_end = time.time()
-            
+
             curl_start = time.time()
             curl_x, curl_y, curl_z = curl_3d_with_ghosts(vx, vy, vz, comm)
             curl_end = time.time()
-            
+
             write_start = time.time()
             writer.write("Div", div)
             writer.write("Curl_x", curl_x)
@@ -339,19 +345,19 @@ def main():
         reader.end_step()
         writer.end_step()
         step_end = time.time()
-        
+
         if rank == 0:
             times_file.write(f"Step time: {step_end - step_start:.6f} s\n")
 
     reader.close()
     writer.close()
     program_end = time.time()
-    
+
     if rank == 0:
         times_file.write(f"\nProgram ended at {program_end:.6f}\n")
         times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
         times_file.close()
-    
+
     print(f"DivCurl finished successfully and saved to ./{args.output}")
 
 
