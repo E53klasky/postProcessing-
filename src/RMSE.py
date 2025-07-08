@@ -7,6 +7,7 @@ import WrighterClass
 from mpi4py import MPI
 
 
+# Fix sub before you fix this
 # NOTE only works in parallel for same sizes
 def RMSE2D(GT, E, step, var_NAME, skip_factor=2):
     error = np.zeros_like(E)

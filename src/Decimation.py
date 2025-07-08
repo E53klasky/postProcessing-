@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from WrighterClass import Writer
 from ReaderClass import Reader
+from rich.traceback import install
+import adios2
+import numpy as np
+import argparse
 
 
 # TODO wright out l1,l2, l inf errors  take in command line args and make it work and adios part
@@ -209,3 +213,13 @@ print(levels)
 for lvl in levels:
     print("lvl=", lvl)
     plot_level(progressive, lvl, min_size=min_val, full_resolution_shape=data.shape)
+
+# def parse_arguments():
+#     print()
+
+# def main():
+#     print()
+
+# if __name__ == "__main__":
+#     install()
+#     main()
