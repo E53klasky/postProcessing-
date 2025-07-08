@@ -1,5 +1,6 @@
 import adios2
 from rich.traceback import install
+import time
 
 """ 
 Handles serial/parallel reading from ADIOS2 .bp files.
@@ -37,15 +38,18 @@ class Reader:
 
     def begin_step(self):
 
-        if not self.state:
-            print("The step staus is false you should be using the SST ENGINE")
-
         if self.state == True:
 
             print("Error begin step called wihtout ending the step")
             self.close()
 
-        status = self.Adios_reader.begin_step(timeout=0.1)
+        while True:
+            status = self.Adios_reader.begin_step(timeout=0.1)
+            if status == adios2.bindings.StepStatus.NotReady:
+                time.sleep(0.1)
+            else:
+                break
+
         if status == adios2.bindings.StepStatus.OK:
             self.state = True
         return status

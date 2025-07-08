@@ -4,8 +4,6 @@ import ReaderClass
 import WrighterClass
 import numpy as np
 from mpi4py import MPI
-import time
-
 
 
 def parse_arguments():
@@ -53,7 +51,7 @@ def parse_arguments():
         required=True,
         help="Path to ADIOS2 XML configuration file (optional)",
     )
-    
+
     parser.add_argument(
         "--output",
         "-o",
@@ -82,10 +80,6 @@ def main():
     flag = True
     while True:
         status = r.begin_step()
-        
-        if status == adios2.bindings.StepStatus.NotReady:
-            time.sleep(1.1)
-            continue
 
         if status != adios2.bindings.StepStatus.OK:
             break
