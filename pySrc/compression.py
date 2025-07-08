@@ -90,11 +90,11 @@ def main():
 
         for name, info in r.Adios_reader.available_variables().items():
             r.set_read_vars([name])
-            data = r.read_step(name)
+            data = np.array(r.read_step(name), dtype=np.float64)
             w.write(name, data)
 
             if flag:
-                w.write("error_bound", np.array([parser.error_bound]))
+                w.write("error_bound", np.array([parser.error_bound], dtype=np.float64))
                 flag = False
 
         r.end_step()
