@@ -61,7 +61,13 @@ def parse_arguments():
         default="compressed.bp",
         help="Output file name (default: compressed.bp)",
     )
-    parser.add_argument("--Streaming", "-s", type=bool, default=False,help="Are you running with the SST engine")
+    parser.add_argument(
+        "--Streaming",
+        "-s",
+        type=bool,
+        required=True,
+        help="Are you running with the SST engine",
+    )
 
     return parser.parse_args()
 
@@ -83,9 +89,9 @@ def main():
     flag = True
     while True:
         status = r.begin_step()
-        # NOTE this seems to work with streaming and without streaming but be carful have not tried running in parallel 
-        # how to do this better need the bello for streaming but I need the other for files that finshed without a close    
-        if parser.Streaming: # maybe
+        # NOTE this seems to work with streaming and without streaming but be carful have not tried running in parallel
+        # how to do this better need the bello for streaming but I need the other for files that finshed without a close
+        if parser.Streaming:  # maybe
             if status == adios2.bindings.StepStatus.NotReady:
                 time.sleep(1.1)
                 continue

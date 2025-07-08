@@ -37,9 +37,7 @@ class Reader:
 
     def begin_step(self):
         if not self.state:
-            print(
-           "The step staus is false you should be using the SST ENGINE"
-            )
+            print("The step staus is false you should be using the SST ENGINE")
 
         if self.state == True:
 
