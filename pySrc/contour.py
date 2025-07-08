@@ -5,7 +5,7 @@ from adios2 import bindings
 import os
 from rich.traceback import install
 from ReaderClass import Reader
-
+import time
 
 def parse_arguments():
     install()
@@ -59,6 +59,10 @@ def main():
     while True:
         status = r.begin_step()
         r.set_read_vars(vars)
+        
+        if status == bindings.StepStatus.NotReady:
+            time.sleep(1.1)
+            continue
 
         if status != bindings.StepStatus.OK:
             print("No more steps to read or an error occurred.")
