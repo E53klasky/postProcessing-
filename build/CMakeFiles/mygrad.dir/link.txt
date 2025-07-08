@@ -1,1 +1,0 @@
-/usr/bin/g++ -fPIC -g -shared  -o mygrad.cpython-311-x86_64-linux-gnu.so CMakeFiles/mygrad.dir/cppSrc/gradient.cpp.o CMakeFiles/mygrad.dir/cppSrc/gradient_pybind.cpp.o CMakeFiles/mygrad.dir/cppSrc/gradient2d.cpp.o
