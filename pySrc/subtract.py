@@ -7,7 +7,7 @@ from WrighterClass import Writer
 from mpi4py import MPI
 from scipy.interpolate import RegularGridInterpolator
 
-
+# TODO: why am I stil getting the worng values
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."

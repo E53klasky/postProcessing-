@@ -114,6 +114,8 @@ def main():
             print(f"output saved to ../RESULTS/{var}_step_{current_step}_histogram.png")
             plt.close()
             w.begin_step()
+            global_hist = global_hist.astype(np.int32)
+
             w.write("bins", global_hist)
             w.end_step()
 
