@@ -36,12 +36,19 @@ class Reader:
         self.state = False
 
     def begin_step(self):
-        if self.state == False:
-            self.state = True
-        else:
+        if not self.state:
+            print(
+           "The step staus is false you should be using the SST ENGINE"
+            )
+
+        if self.state == True:
+
             print("Error begin step called wihtout ending the step")
             self.close()
+
         status = self.Adios_reader.begin_step(timeout=0.1)
+        if status == adios2.bindings.StepStatus.OK:
+            self.state = True
         return status
 
     def current_step(self):
