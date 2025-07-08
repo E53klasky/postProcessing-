@@ -102,7 +102,6 @@ def main():
             data = np.array(r.read_step(name), dtype=np.float64)
             w.write(name, data)
 
-
             write_start = time.time()
             w.write(name, data)
             if flag:
