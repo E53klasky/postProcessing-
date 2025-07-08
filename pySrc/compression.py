@@ -83,6 +83,7 @@ def main():
     while True:
         step_start = time.time()
         status = r.begin_step()
+
         if status != adios2.bindings.StepStatus.OK:
             break
 
@@ -94,13 +95,18 @@ def main():
         for name, info in r.Adios_reader.available_variables().items():
             read_start = time.time()
             r.set_read_vars([name])
+
             data = r.read_step(name)
             read_end = time.time()
+
+            data = np.array(r.read_step(name), dtype=np.float64)
+            w.write(name, data)
+
 
             write_start = time.time()
             w.write(name, data)
             if flag:
-                w.write("error_bound", np.array([parser.error_bound]))
+                w.write("error_bound", np.array([parser.error_bound], dtype=np.float64))
                 flag = False
             write_end = time.time()
 

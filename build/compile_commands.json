@@ -1,0 +1,20 @@
+[
+{
+  "directory": "/home/adios/Programs/postProcessing-/build",
+  "command": "/usr/bin/g++ -Dmygrad_EXPORTS -isystem /usr/include/python3.11 -g -std=gnu++17 -fPIC -fvisibility=hidden -o CMakeFiles/mygrad.dir/cppSrc/gradient.cpp.o -c /home/adios/Programs/postProcessing-/cppSrc/gradient.cpp",
+  "file": "/home/adios/Programs/postProcessing-/cppSrc/gradient.cpp",
+  "output": "CMakeFiles/mygrad.dir/cppSrc/gradient.cpp.o"
+},
+{
+  "directory": "/home/adios/Programs/postProcessing-/build",
+  "command": "/usr/bin/g++ -Dmygrad_EXPORTS -isystem /usr/include/python3.11 -g -std=gnu++17 -fPIC -fvisibility=hidden -o CMakeFiles/mygrad.dir/cppSrc/gradient_pybind.cpp.o -c /home/adios/Programs/postProcessing-/cppSrc/gradient_pybind.cpp",
+  "file": "/home/adios/Programs/postProcessing-/cppSrc/gradient_pybind.cpp",
+  "output": "CMakeFiles/mygrad.dir/cppSrc/gradient_pybind.cpp.o"
+},
+{
+  "directory": "/home/adios/Programs/postProcessing-/build",
+  "command": "/usr/bin/g++ -Dmygrad_EXPORTS -isystem /usr/include/python3.11 -g -std=gnu++17 -fPIC -fvisibility=hidden -o CMakeFiles/mygrad.dir/cppSrc/gradient2d.cpp.o -c /home/adios/Programs/postProcessing-/cppSrc/gradient2d.cpp",
+  "file": "/home/adios/Programs/postProcessing-/cppSrc/gradient2d.cpp",
+  "output": "CMakeFiles/mygrad.dir/cppSrc/gradient2d.cpp.o"
+}
+]

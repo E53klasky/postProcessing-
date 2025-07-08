@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <adios-config>
+ <!-- -->
   <io name="ReadIOCompressed">
     <engine type="BP5"/>
     <transport type="File">
@@ -43,6 +44,6 @@
       </operation>
     </variable>
 
-
+<!-- -->
   </io>
 </adios-config>

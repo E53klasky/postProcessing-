@@ -181,7 +181,7 @@ def main():
 
                 rmse_values.append(rmse_value)
 
-                w.write("RMSE", np.array([rmse_value]))
+                w.write("RMSE", np.array([rmse_value], dtype=np.float64))
 
             else:
                 print(f"Variable '{var}' data is None in one of the streams")
