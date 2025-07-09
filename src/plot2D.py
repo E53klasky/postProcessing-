@@ -41,6 +41,7 @@ def main():
     vars = args.vars.split(",")
 
     output_dir = "../RESULTS"
+    os.makedirs(output_dir, exist_ok=True)
     while True:
         status = r.begin_step()
 

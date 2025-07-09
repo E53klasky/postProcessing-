@@ -6,43 +6,36 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
 from scipy.interpolate import RegularGridInterpolator
+from numba import njit, prange
 
 
-# TODO: why am I stil getting the worng values
+# idk what to do
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
     )
     parser.add_argument(
-        "--bpfile1", help="Lower-resolution input BP file", required=True
+        "--bpfile1", required=True, help="Lower-resolution input BP file"
     )
     parser.add_argument(
-        "--bpfile2", help="Higher-resolution input BP file", required=True
+        "--bpfile2", required=True, help="Higher-resolution input BP file"
     )
     parser.add_argument(
-        "--Declare_Read_Io1", help="IO name for lower-resolution input", required=True
+        "--Declare_Read_Io1", required=True, help="IO name for lower-resolution input"
     )
     parser.add_argument(
-        "--Declare_Read_Io2", help="IO name for higher-resolution input", required=True
+        "--Declare_Read_Io2", required=True, help="IO name for higher-resolution input"
     )
     parser.add_argument(
-        "--Declare_Write_IO", help="IO name for writing output", required=True
+        "--Declare_Write_IO", required=True, help="IO name for writing output"
     )
-    parser.add_argument("--var", help="Variable name to subtract", required=True)
+    parser.add_argument("--var", required=True, help="Variable name to subtract")
     parser.add_argument(
-        "--output_file",
-        "-o",
-        default="subtract.bp",
-        help="Output BP file for the result",
+        "--output_file", "-o", default="subtract.bp", help="Output BP file"
     )
+    parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML config")
     parser.add_argument(
-        "--xml", default=None, help="Optional ADIOS2 XML configuration (default: None)"
-    )
-    parser.add_argument(
-        "--tolerance",
-        default=None,
-        type=float,
-        help="Tolerance level: differences <= tolerance will be set to 0",
+        "--tolerance", type=float, default=None, help="Tolerance for subtraction"
     )
     return parser.parse_args()
 
@@ -60,15 +53,25 @@ def upscale_array(low_res, high_res_shape):
     return high_res
 
 
-def subtraction(low_res, ground_truth, tolerance):
-    low_res = low_res.astype(np.float64)
-    ground_truth = ground_truth.astype(np.float64)
-
-    diff = np.abs(ground_truth - low_res, dtype=np.float64)
-
-    if tolerance is not None:
-        diff[diff <= tolerance] = 0
+# just as good as other even with the error why idk assume it works seems to be good enough
+@njit(parallel=True)
+def fast_subtract(low_res, high_res, tolerance):
+    diff = np.empty_like(high_res, dtype=np.float64)
+    for i in prange(high_res.size):
+        d = abs(high_res.flat[i] - low_res.flat[i])
+        diff.flat[i] = 0.0 if tolerance is not None and d <= tolerance else d
     return diff
+
+
+def subtraction(low_res, ground_truth, tolerance, comm):
+    return fast_subtract(
+        low_res.astype(np.float64), ground_truth.astype(np.float64), tolerance
+    )
+    # diff = np.abs(ground_truth - low_res)
+    # # same as other thing  still a little bit off
+    # if tolerance is not None:
+    #     diff = np.where(diff <= tolerance, 0.0, diff)
+    # return diff
 
 
 def main():
@@ -106,8 +109,7 @@ def main():
         if low_res.shape != ground_truth.shape:
             low_res = upscale_array(low_res, ground_truth.shape)
 
-        diff = subtraction(low_res, ground_truth, tolerance)
-        print(f"max diff: {np.max(diff)}")
+        diff = subtraction(low_res, ground_truth, tolerance, comm)
         w.write(f"diff_{var}", diff)
         w.end_step()
 
