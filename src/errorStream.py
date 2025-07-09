@@ -247,7 +247,6 @@ def RK_visualization(
 
 
 def parse_arguments():
-    install()
     parser = argparse.ArgumentParser(
         description="Calculating the error of streamlines given the segments"
     )
@@ -411,5 +410,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
     install()
+    main()
+    
