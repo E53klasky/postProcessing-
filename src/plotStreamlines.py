@@ -7,6 +7,7 @@ from rich.traceback import install
 from ReaderClass import Reader
 from scipy.interpolate import CubicSpline, Akima1DInterpolator
 
+
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(
@@ -52,7 +53,6 @@ def parse_arguments():
         help="IO Name for the first Adios file (default: reader1)",
     )
 
-
     parser.add_argument(
         "--xml", "-x", type=str, default=None, help="ADIOS2 XML config file (optional)"
     )
@@ -83,7 +83,8 @@ def parse_arguments():
 def plotStreamlines():
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
-    
+
+
 def main():
     args = parse_arguments()
     r = Reader(args.IO_Name1, args.file1, xml=args.xml)
@@ -107,13 +108,11 @@ def main():
             print("Variables not found in the stream.")
             break
 
-
         x_vals = r.read_step(args.var_x)
         y_vals = r.read_step(args.var_y)
         offsets = r.read_step(args.var_offset)
 
         streamlines = extract_streamlines_from_segments(x_vals, y_vals, offsets)
-
 
         for idx, streamline in enumerate(streamlines):
             if len(streamline) < 4:
@@ -123,8 +122,7 @@ def main():
             x = streamline[:, 0]
             y = streamline[:, 1]
 
-  
-            dist = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
+            dist = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2)
             arc_len = np.concatenate([[0], np.cumsum(dist)])
 
             cubic_x = CubicSpline(arc_len, x)
@@ -136,13 +134,13 @@ def main():
             interp_points = np.linspace(arc_len[0], arc_len[-1], args.num_spline)
 
             plt.figure(figsize=(8, 6))
-       
+
             # plt.plot(cubic_x(interp_points), cubic_y(interp_points), label="Cubic Spline", color='blue')
             # plt.plot(akima_x(interp_points), akima_y(interp_points), label="Akima", color='green')
-            plt.plot(x, y, color='red', label='RK4 Points')
+            plt.plot(x, y, color="red", label="RK4 Points")
             plt.legend()
             plt.title(f"Streamline {idx} (Step {current_step})")
-            plt.axis('equal')
+            plt.axis("equal")
             plt.xlabel("x")
             plt.ylabel("y")
             plt.grid(True)
@@ -154,6 +152,8 @@ def main():
             plt.close()
 
         r.end_step()
+
+
 if __name__ == "__main__":
     main()
     install()
