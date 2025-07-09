@@ -5,10 +5,8 @@ from rich.traceback import install
 from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
-from scipy.interpolate import RegularGridInterpolator
-from numba import njit, prange
 
-
+# this does not work  
 # idk what to do
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -39,39 +37,50 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+# code only fials with 3 cores fails with 3 
+# 2d 
+def subtraction_2D(low_res, ground_truth, tolerance, comm):
+    skip_i = ground_truth.shape[0] / low_res.shape[0]
+    skip_j = ground_truth.shape[1] / low_res.shape[1]
+    skip_i_int = int(np.ceil(skip_i))
+    skip_j_int = int(np.ceil(skip_j))
 
-def upscale_array(low_res, high_res_shape):
-    old_shape = low_res.shape
-    old_axes = [np.linspace(0, 1, s) for s in old_shape]
-    interpolator = RegularGridInterpolator(old_axes, low_res.astype(np.float64))
+    data1_upsampled = np.repeat(np.repeat(low_res, skip_i_int, axis=0), skip_j_int, axis=1)
 
-    new_axes = [np.linspace(0, 1, s) for s in high_res_shape]
-    mesh = np.meshgrid(*new_axes, indexing="ij")
-    points = np.stack([axis.ravel() for axis in mesh], axis=-1)
-
-    high_res = interpolator(points).reshape(high_res_shape)
-    return high_res
+    data1_upsampled = data1_upsampled[:ground_truth.shape[0], :ground_truth.shape[1]]
 
 
-# just as good as other even with the error why idk assume it works seems to be good enough
-@njit(parallel=True)
-def fast_subtract(low_res, high_res, tolerance):
-    diff = np.empty_like(high_res, dtype=np.float64)
-    for i in prange(high_res.size):
-        d = abs(high_res.flat[i] - low_res.flat[i])
-        diff.flat[i] = 0.0 if tolerance is not None and d <= tolerance else d
+    diff = np.abs(ground_truth - data1_upsampled)
+
+    if tolerance is not None:
+        diff = np.where(diff <= tolerance, 0.0, diff)
     return diff
 
 
-def subtraction(low_res, ground_truth, tolerance, comm):
-    return fast_subtract(
-        low_res.astype(np.float64), ground_truth.astype(np.float64), tolerance
+def subtraction_3D(low_res, ground_truth, tolerance=None, comm=None):
+    skip_i = ground_truth.shape[0] / low_res.shape[0]
+    skip_j = ground_truth.shape[1] / low_res.shape[1]
+    skip_k = ground_truth.shape[2] / low_res.shape[2]
+
+    skip_i_int = int(np.ceil(skip_i))
+    skip_j_int = int(np.ceil(skip_j))
+    skip_k_int = int(np.ceil(skip_k))
+
+    upsampled = np.repeat(
+        np.repeat(
+            np.repeat(low_res, skip_i_int, axis=0),
+            skip_j_int, axis=1),
+        skip_k_int, axis=2
     )
-    # diff = np.abs(ground_truth - low_res)
-    # # same as other thing  still a little bit off
-    # if tolerance is not None:
-    #     diff = np.where(diff <= tolerance, 0.0, diff)
-    # return diff
+
+    upsampled = upsampled[:ground_truth.shape[0], :ground_truth.shape[1], :ground_truth.shape[2]]
+
+    diff = np.abs(ground_truth - upsampled)
+
+    if tolerance is not None:
+        diff = np.where(diff <= tolerance, 0.0, diff)
+
+    return diff
 
 
 def main():
@@ -106,13 +115,22 @@ def main():
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
-        if low_res.shape != ground_truth.shape:
-            low_res = upscale_array(low_res, ground_truth.shape)
-
-        diff = subtraction(low_res, ground_truth, tolerance, comm)
-        w.write(f"diff_{var}", diff)
-        w.end_step()
-
+ 
+        if len(low_res.shape) == 3 and low_res.shape[0] == 1:
+            low_res = low_res[0, :, :]
+            ground_truth = ground_truth[0,:,:]
+            diff = subtraction_2D(low_res, ground_truth, tolerance, comm)
+            w.write(f"diff_{var}", diff)
+            w.end_step()
+        elif len(low_res.shape) == 2:
+            diff = subtraction_2D(low_res, ground_truth, tolerance, comm)
+            w.write(f"diff_{var}", diff)
+            w.end_step()
+        else:
+            diff = subtraction_3D(low_res, ground_truth, tolerance, comm)
+            w.write(f"diff_{var}", diff)
+            w.end_step()
+            
         r_low.end_step()
         r_high.end_step()
 

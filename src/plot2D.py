@@ -1,11 +1,9 @@
-import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import adios2
 import os
 import ReaderClass
 from rich.traceback import install
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
