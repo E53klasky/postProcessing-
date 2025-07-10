@@ -6,7 +6,7 @@ import ReaderClass
 import WrighterClass
 from mpi4py import MPI
 
-
+# this does not work  
 # Fix sub before you fix this
 # NOTE only works in parallel for same sizes
 def RMSE2D(GT, E, step, var_NAME, skip_factor=2):

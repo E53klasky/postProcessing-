@@ -6,136 +6,68 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
 from scipy.interpolate import RegularGridInterpolator
-
-
-# this will not scale 
+# idk this does not work 
+# TODO: why am I stil getting the worng values
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Subtract variables from two ADIOS2 files and write the difference."
     )
     parser.add_argument(
-        "--bpfile1", required=True, help="Lower-resolution input BP file"
+        "--bpfile1", help="Lower-resolution input BP file", required=True
     )
     parser.add_argument(
-        "--bpfile2", required=True, help="Higher-resolution input BP file"
+        "--bpfile2", help="Higher-resolution input BP file", required=True
     )
     parser.add_argument(
-        "--Declare_Read_Io1", required=True, help="IO name for lower-resolution input"
+        "--Declare_Read_Io1", help="IO name for lower-resolution input", required=True
     )
     parser.add_argument(
-        "--Declare_Read_Io2", required=True, help="IO name for higher-resolution input"
+        "--Declare_Read_Io2", help="IO name for higher-resolution input", required=True
     )
     parser.add_argument(
-        "--Declare_Write_IO", required=True, help="IO name for writing output"
+        "--Declare_Write_IO", help="IO name for writing output", required=True
     )
-    parser.add_argument("--var", required=True, help="Variable name to subtract")
+    parser.add_argument("--var", help="Variable name to subtract", required=True)
     parser.add_argument(
-        "--output_file", "-o", default="subtract.bp", help="Output BP file"
+        "--output_file",
+        "-o",
+        default="subtract.bp",
+        help="Output BP file for the result",
     )
-    parser.add_argument("--xml", default=None, help="Optional ADIOS2 XML config")
     parser.add_argument(
-        "--tolerance", type=float, default=None, help="Tolerance for subtraction"
+        "--xml", default=None, help="Optional ADIOS2 XML configuration (default: None)"
+    )
+    parser.add_argument(
+        "--tolerance",
+        default=None,
+        type=float,
+        help="Tolerance level: differences <= tolerance will be set to 0",
     )
     return parser.parse_args()
 
 
-def get_global_array_info(local_data, comm):
+def upscale_array(low_res, high_res_shape):
+    old_shape = low_res.shape
+    old_axes = [np.linspace(0, 1, s) for s in old_shape]
+    interpolator = RegularGridInterpolator(old_axes, low_res.astype(np.float64))
 
-    local_shape = np.array(local_data.shape)
+    new_axes = [np.linspace(0, 1, s) for s in high_res_shape]
+    mesh = np.meshgrid(*new_axes, indexing="ij")
+    points = np.stack([axis.ravel() for axis in mesh], axis=-1)
 
-    all_shapes = comm.allgather(local_shape)
-    
-    global_shape = local_shape.copy()
-    global_shape[-1] = sum(shape[-1] for shape in all_shapes)
-    
-    rank = comm.Get_rank()
-    local_offset = np.zeros_like(local_shape)
-    local_offset[-1] = sum(all_shapes[i][-1] for i in range(rank))
-    
-    return global_shape, local_offset, local_shape
+    high_res = interpolator(points).reshape(high_res_shape)
+    return high_res
 
 
-def create_local_interpolator(global_low_shape, global_high_shape, local_high_offset, local_high_shape):
+def subtraction(low_res, ground_truth, tolerance):
+    low_res = low_res.astype(np.float64)
+    ground_truth = ground_truth.astype(np.float64)
 
-    if len(global_low_shape) == 2:
-        low_y = np.linspace(0, 1, global_low_shape[0])
-        low_x = np.linspace(0, 1, global_low_shape[1])
-        
-        high_y = np.linspace(0, 1, global_high_shape[0])
-        high_x = np.linspace(0, 1, global_high_shape[1])
-        
-        local_high_y = high_y[local_high_offset[0]:local_high_offset[0] + local_high_shape[0]]
-        local_high_x = high_x[local_high_offset[1]:local_high_offset[1] + local_high_shape[1]]
-        
-        xv, yv = np.meshgrid(local_high_x, local_high_y)
-        points = np.stack((yv.ravel(), xv.ravel()), axis=-1)
-        
-        return points, (low_y, low_x), local_high_shape
-        
-    elif len(global_low_shape) == 3:
-        low_y = np.linspace(0, 1, global_low_shape[0])
-        low_x = np.linspace(0, 1, global_low_shape[1])
-        low_z = np.linspace(0, 1, global_low_shape[2])
-        
-        high_y = np.linspace(0, 1, global_high_shape[0])
-        high_x = np.linspace(0, 1, global_high_shape[1])
-        high_z = np.linspace(0, 1, global_high_shape[2])
-        
-        local_high_y = high_y[local_high_offset[0]:local_high_offset[0] + local_high_shape[0]]
-        local_high_x = high_x[local_high_offset[1]:local_high_offset[1] + local_high_shape[1]]
-        local_high_z = high_z[local_high_offset[2]:local_high_offset[2] + local_high_shape[2]]
-        
-        xv, yv, zv = np.meshgrid(local_high_x, local_high_y, local_high_z, indexing='ij')
-        points = np.stack((yv.ravel(), xv.ravel(), zv.ravel()), axis=-1)
-        
-        return points, (low_y, low_x, low_z), local_high_shape
-    
-    else:
-        raise ValueError(f"Unsupported dimensionality: {len(global_low_shape)}")
+    diff = np.abs(ground_truth - low_res, dtype=np.float64)
 
-
-def parallel_upscale_and_subtract(local_low_res, local_high_res, tolerance, comm):
-
-    rank = comm.Get_rank()
-    
-    global_low_shape, local_low_offset, local_low_shape = get_global_array_info(local_low_res, comm)
-    global_high_shape, local_high_offset, local_high_shape = get_global_array_info(local_high_res, comm)
-    
-    if rank == 0:
-        print(f"Global low shape: {global_low_shape}, Global high shape: {global_high_shape}")
-    
-    # assuming small data set is small enough to fit in memory for each process 
-    all_low_data = comm.allgather(local_low_res)
-
-    if len(global_low_shape) == 2:
-        full_low_res = np.concatenate(all_low_data, axis=-1)
-    elif len(global_low_shape) == 3:
-        full_low_res = np.concatenate(all_low_data, axis=-1)
-    else:
-        raise ValueError(f"Unsupported dimensionality: {len(global_low_shape)}")
-    
-    if len(global_low_shape) == 2:
-        low_y = np.linspace(0, 1, global_low_shape[0])
-        low_x = np.linspace(0, 1, global_low_shape[1])
-        interp = RegularGridInterpolator((low_y, low_x), full_low_res, bounds_error=False, fill_value=0)
-    elif len(global_low_shape) == 3:
-        low_y = np.linspace(0, 1, global_low_shape[0])
-        low_x = np.linspace(0, 1, global_low_shape[1])
-        low_z = np.linspace(0, 1, global_low_shape[2])
-        interp = RegularGridInterpolator((low_y, low_x, low_z), full_low_res, bounds_error=False, fill_value=0)
-    
-    points, _, target_shape = create_local_interpolator(
-        global_low_shape, global_high_shape, local_high_offset, local_high_shape
-    )
-
-    local_upsampled = interp(points).reshape(target_shape)
-
-    local_diff = np.abs(local_high_res - local_upsampled)
-    
     if tolerance is not None:
-        local_diff = np.where(local_diff <= tolerance, 0.0, local_diff)
-    
-    return local_diff
+        diff[diff <= tolerance] = 0
+    return diff
 
 
 def main():
@@ -154,14 +86,14 @@ def main():
     while True:
         status_low = r_low.begin_step()
         status_high = r_high.begin_step()
-        
-        if (bindings.StepStatus.OK != status_low or 
-            bindings.StepStatus.OK != status_high):
+        if (
+            bindings.StepStatus.OK != status_low
+            or bindings.StepStatus.OK != status_high
+        ):
             break
 
         current_step = r_low.current_step()
-        if rank == 0:
-            print(f"Processing step {int(current_step)}")
+        print(f"Rank {rank}: Reading step {int(current_step)}")
 
         w.begin_step()
         r_low.set_read_vars([var])
@@ -170,33 +102,23 @@ def main():
         low_res = r_low.read_step(var)
         ground_truth = r_high.read_step(var)
 
-        if rank == 0:
-            print(f"Rank {rank}: Low res shape: {low_res.shape}, Ground truth shape: {ground_truth.shape}")
+        if low_res.shape != ground_truth.shape:
+            low_res = upscale_array(low_res, ground_truth.shape)
 
-        if len(low_res.shape) == 3 and low_res.shape[0] == 1:
-            low_res = low_res[0, :, :]
-            ground_truth = ground_truth[0, :, :]
-
-        try:
-            diff = parallel_upscale_and_subtract(low_res, ground_truth, tolerance, comm)
-        except Exception as e:
-            if rank == 0:
-                print(f"Error in parallel processing: {e}")
-            break
-
+        diff = subtraction(low_res, ground_truth, tolerance)
+        print(f"max diff: {np.max(diff)}")
         w.write(f"diff_{var}", diff)
         w.end_step()
-        
+
         r_low.end_step()
         r_high.end_step()
-        
 
     r_low.close()
     r_high.close()
     w.close()
 
     if rank == 0:
-        print(f"Output written to {args.output_file}")
+        print(f"\nSubtraction completed and written to {args.output_file}")
 
 
 if __name__ == "__main__":
