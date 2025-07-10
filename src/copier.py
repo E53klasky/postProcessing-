@@ -9,7 +9,7 @@ import time
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Compresion code to compress the data"
+        description="Generate copying plots from ADIOS2 BP5 files"
     )
     parser.add_argument(
         "--input",
@@ -23,6 +23,7 @@ def parse_arguments():
         "-rio",
         type=str,
         default="reader1",
+        required=False,
         help="IO Name for the first Adios file (default: reader1)",
     )
     parser.add_argument(
@@ -30,30 +31,24 @@ def parse_arguments():
         "-wio",
         type=str,
         default="writer1",
+        required=False,
         help="IO Name for the second Adios file (default: writer1)",
     )
-    parser.add_argument(
-        "--error_bound",
-        "-eb",
-        type=float,
-        required=True,
-        default=None,
-        help="Error bound for compression in xml file (required)",
-    )
+
     parser.add_argument(
         "--xml",
         "-x",
         type=str,
         default=None,
-        required=True,
+        required=False,
         help="Path to ADIOS2 XML configuration file (optional)",
     )
     parser.add_argument(
         "--output",
         "-o",
         type=str,
-        default="compressed.bp",
-        help="Output file name (default: compressed.bp)",
+        default="copied.bp",
+        help="Output file name (default: copied.bp)",
     )
     return parser.parse_args()
 
@@ -79,7 +74,6 @@ def main():
     r = ReaderClass.Reader(readIO, input, xml=xml, comm=comm)
     w = WrighterClass.Writer(WrightIO, output, xml=xml, comm=comm)
 
-    flag = True
     while True:
         step_start = time.time()
         status = r.begin_step()
@@ -104,9 +98,7 @@ def main():
 
             write_start = time.time()
             w.write(name, data)
-            if flag:
-                w.write("error_bound", np.array([parser.error_bound], dtype=np.float64))
-                flag = False
+
             write_end = time.time()
 
             if rank == 0:
@@ -128,7 +120,7 @@ def main():
         times_file.write(f"\nProgram ended at {program_end:.6f}\n")
         times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
         times_file.close()
-    print(f"Compression completed. Output written to {output}.")
+    print(f"Copier completed. Output written to {output}.")
 
 
 if __name__ == "__main__":
