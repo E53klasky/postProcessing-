@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from rich.traceback import install
 from ReaderClass import Reader
 
+
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(

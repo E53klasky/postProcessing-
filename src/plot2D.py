@@ -5,6 +5,7 @@ import os
 import ReaderClass
 from rich.traceback import install
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Generate 2D plots from ADIOS2 BP file variable."
@@ -28,7 +29,7 @@ def parse_arguments():
         help="Variables name to create 2d plots separated by commas",
     )
     parser.add_argument(
-        "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
+        "--xml", "-x", type=str, default=None, help="Optional ADIOS2 XML configuration"
     )
     return parser.parse_args()
 

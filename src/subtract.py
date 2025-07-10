@@ -6,7 +6,9 @@ from ReaderClass import Reader
 from WrighterClass import Writer
 from mpi4py import MPI
 from scipy.interpolate import RegularGridInterpolator
-# idk this does not work 
+
+
+# idk this does not work
 # TODO: why am I stil getting the worng values
 def parse_arguments():
     parser = argparse.ArgumentParser(

@@ -6,12 +6,13 @@ import adios2
 import argparse
 from scipy.ndimage import zoom
 
-# this really does not work  
+# this really does not work
 # TODO: fix error wright out, gernalize to mxn not 2^m x2^n,3d, parallel
 
+
 def calculate_errors(original, reconstructed):
-    # this does not work   
-# --------------------------------------------------------------------
+    # this does not work
+    # --------------------------------------------------------------------
     skip_factor = original.shape[0] / reconstructed.shape[0]
     diff = np.zeros_like(reconstructed, dtype=np.float64)
     for i in range(reconstructed.shape[0]):
@@ -24,7 +25,7 @@ def calculate_errors(original, reconstructed):
                 diff[i, j] = np.abs(gt_value - e_value)
             else:
                 diff[i, j] = np.nan
-# -----------------------------------------------------------------
+    # -----------------------------------------------------------------
     l1_error = np.sum(diff)
     l2_error = np.sqrt(np.sum(diff**2))
     linf_error = np.nanmax(diff)

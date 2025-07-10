@@ -1,0 +1,4 @@
+This is the XML file to replace the default one used by Xcompact3D.
+
+Note: This configuration is intended **only** for the SST (Scalable Streaming Transport) engine.
+
