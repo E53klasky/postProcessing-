@@ -5,8 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from rich.traceback import install
 from ReaderClass import Reader
-from scipy.interpolate import CubicSpline, Akima1DInterpolator
-
 
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
@@ -68,21 +66,7 @@ def parse_arguments():
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
 
-    parser.add_argument(
-        "--num_spline",
-        "-N",
-        default=1000,
-        type=int,
-        required=True,
-        help="Number of spile points to interploate",
-    )
-
     return parser.parse_args()
-
-
-def plotStreamlines():
-    output_dir = "../RESULTS"
-    os.makedirs(output_dir, exist_ok=True)
 
 
 def main():
@@ -114,6 +98,10 @@ def main():
 
         streamlines = extract_streamlines_from_segments(x_vals, y_vals, offsets)
 
+        output_dir = "../RESULTS"
+        os.makedirs(output_dir, exist_ok=True)
+
+        plt.figure(figsize=(10, 8))
         for idx, streamline in enumerate(streamlines):
             if len(streamline) < 4:
                 print(f"Skipping streamline {idx} (too few points)")
@@ -121,39 +109,33 @@ def main():
 
             x = streamline[:, 0]
             y = streamline[:, 1]
+            plt.plot(x, y, label=f"Streamline {idx}")
 
-            dist = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2)
-            arc_len = np.concatenate([[0], np.cumsum(dist)])
-
-            cubic_x = CubicSpline(arc_len, x)
-            cubic_y = CubicSpline(arc_len, y)
-
-            akima_x = Akima1DInterpolator(arc_len, x)
-            akima_y = Akima1DInterpolator(arc_len, y)
-
-            interp_points = np.linspace(arc_len[0], arc_len[-1], args.num_spline)
-
-            plt.figure(figsize=(8, 6))
-
-            # plt.plot(cubic_x(interp_points), cubic_y(interp_points), label="Cubic Spline", color='blue')
-            # plt.plot(akima_x(interp_points), akima_y(interp_points), label="Akima", color='green')
+            plt_individual = plt.figure(figsize=(8, 6))
             plt.plot(x, y, color="red", label="RK4 Points")
-            plt.legend()
             plt.title(f"Streamline {idx} (Step {current_step})")
             plt.axis("equal")
             plt.xlabel("x")
             plt.ylabel("y")
             plt.grid(True)
+            plt.legend()
             plt.tight_layout()
-
-            output_dir = "../RESULTS"
-            os.makedirs(output_dir, exist_ok=True)
             plt.savefig(f"{output_dir}/streamline_{idx:03d}_step_{current_step}.png")
-            plt.close()
+            plt.close(plt_individual)
+
+        plt.title(f"All Streamlines (Step {current_step})")
+        plt.axis("equal")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.grid(True)
+        plt.legend(loc="best", fontsize="small")
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/all_streamlines_step_{current_step}.png")
+        plt.close()
 
         r.end_step()
 
 
 if __name__ == "__main__":
-    main()
     install()
+    main()
