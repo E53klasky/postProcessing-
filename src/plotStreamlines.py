@@ -123,6 +123,7 @@ def main():
             plt.legend()
             plt.tight_layout()
             plt.savefig(f"{output_dir}/streamline_{idx:03d}_step_{current_step}.png")
+            print(f"plot saved to {output_dir}/streamline_{idx:03d}_step_{current_step}.png")
             plt.close(plt_individual)
 
         plt.title(f"All Streamlines (Step {current_step})")
@@ -133,6 +134,7 @@ def main():
         plt.legend(loc="best", fontsize="small")
         plt.tight_layout()
         plt.savefig(f"{output_dir}/all_streamlines_step_{current_step}.png")
+        print(f"plot saved to {output_dir}/all_streamlines_step_{current_step}.png")
         plt.close()
 
         r.end_step()

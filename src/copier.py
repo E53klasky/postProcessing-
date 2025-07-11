@@ -50,12 +50,26 @@ def parse_arguments():
         default="copied.bp",
         help="Output file name (default: copied.bp)",
     )
+    
+    parser.add_argument(
+        "--sleep",
+        "-s",
+        type=int,
+        required=False,
+        default=1,
+        help="sleep time in seconds",
+    )
+    
     return parser.parse_args()
 
 
 def main():
     program_start = time.time()
+    
+    
     parser = parse_arguments()
+    
+    sleep_time = parser.sleep
     input = parser.input
     readIO = parser.readIO
     WrightIO = parser.WrightIO
@@ -94,9 +108,9 @@ def main():
             read_end = time.time()
 
             data = np.array(r.read_step(name), dtype=np.float64)
-            w.write(name, data)
 
             write_start = time.time()
+            time.sleep(sleep_time)
             w.write(name, data)
 
             write_end = time.time()
