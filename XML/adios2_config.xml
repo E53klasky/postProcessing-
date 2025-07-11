@@ -81,19 +81,16 @@
 
   <io name="io">
     <engine type="SST"/>
-    <transport type="File">
-      <parameter key="Library" value="fstream"/>
-      <parameter key="ProfileUnits" value="Milliseconds"/>
-    </transport>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
   </io>
 
   <io name="wio">
     <engine type="SST">
-      <parameter key="RendezvousReaderCount" value="0"/>
-      <parameter key="QueueLimit" value="1"/>
-      <parameter key="QueueFullPolicy" value="Block"/>
-      <parameter key="DataTransport" value="WAN"/>
-      <parameter key="OpenTimeoutSecs" value="10.0"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
     </engine>
   </io>
 
