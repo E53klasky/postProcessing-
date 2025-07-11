@@ -34,21 +34,22 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Calculating the error of streamlines given the segments"
-    )
+    parser = argparse.ArgumentParser(description="Plotting streamlines")
 
     parser.add_argument(
-        "--file1",
+        "--input",
+        "-in",
         type=str,
         required=True,
-        help="First Adios file with streamline segments (lower resolution/compressed)",
+        help="Adios file to compress",
     )
 
     parser.add_argument(
-        "--IO_Name1",
+        "--readIO",
+        "-rio",
         type=str,
         default="reader1",
+        required=False,
         help="IO Name for the first Adios file (default: reader1)",
     )
 
@@ -72,7 +73,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    r = Reader(args.IO_Name1, args.file1, xml=args.xml)
+    r = Reader(args.readIO, args.input, xml=args.xml)
 
     while True:
         status = r.begin_step()

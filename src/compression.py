@@ -8,9 +8,7 @@ import time
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Compresion code to compress the data"
-    )
+    parser = argparse.ArgumentParser(description="Compresion code to compress the data")
     parser.add_argument(
         "--input",
         "-in",
@@ -23,6 +21,7 @@ def parse_arguments():
         "-rio",
         type=str,
         default="reader1",
+        required=False,
         help="IO Name for the first Adios file (default: reader1)",
     )
     parser.add_argument(
@@ -30,6 +29,7 @@ def parse_arguments():
         "-wio",
         type=str,
         default="writer1",
+        required=False,
         help="IO Name for the second Adios file (default: writer1)",
     )
     parser.add_argument(

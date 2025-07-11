@@ -212,8 +212,8 @@ def parse_arguments():
         description="Generate streamline plots from ADIOS2 BP files"
     )
     parser.add_argument(
-        "--file",
-        "-f",
+        "--input",
+        "-in",
         type=str,
         required=True,
         help="Path to the BP file to process (REQUIRED)",
@@ -244,18 +244,20 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--io_read_name",
-        "-ior",
+        "--readIO",
+        "-rio",
         type=str,
-        required=True,
-        help="Name you want to declare the io name as (if you are using the xml this must match) (REQUIRED)",
+        required=False,
+        default="reader1",
+        help="IO Name for the first Adios file (default: reader1)",
     )
     parser.add_argument(
-        "--io_write_name",
-        "-iow",
+        "--WrightIO",
+        "-wio",
         type=str,
-        required=True,
-        help="Name you want to declare the io name as for writing (REQUIRED)",
+        default="writer1",
+        required=False,
+        help="IO Name for the second Adios file (default: writer1)",
     )
 
     parser.add_argument(
@@ -264,7 +266,7 @@ def parse_arguments():
         type=str,
         default="segments.bp",
         required=False,
-        help="Output file name default: segments.bp (optional)",
+        help="Output file name (default: segments.bp) (optional)",
     )
 
     parser.add_argument(
@@ -273,7 +275,7 @@ def parse_arguments():
         required=False,
         type=np.float64,
         default=0.001,
-        help="step size for the rk steps dh",
+        help="step size for the rk steps dh (defulat: 0.001)",
     )
     parser.add_argument(
         "--num_RK_steps",
@@ -281,7 +283,7 @@ def parse_arguments():
         required=False,
         type=int,
         default=4500,
-        help="Number of RK steps to take",
+        help="Number of RK steps to take (default: 4500)",
     )
 
     return parser.parse_args()
@@ -290,10 +292,10 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    bp_file = args.file
+    bp_file = args.input
     xml_file = args.xml
-    io_name = args.io_read_name
-    io_write_name = args.io_write_name
+    io_name = args.readIO
+    io_write_name = args.WrightIO
     var_names = [v.strip() for v in args.vars.split(",")]
 
     is_3d = len(var_names) == 3

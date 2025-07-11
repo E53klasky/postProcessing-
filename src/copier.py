@@ -5,12 +5,11 @@ import WrighterClass
 import numpy as np
 from mpi4py import MPI
 import time
+from rich.traceback import install
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Generate copying plots from ADIOS2 BP5 files"
-    )
+    parser = argparse.ArgumentParser(description="Copy code to compress the data")
     parser.add_argument(
         "--input",
         "-in",
@@ -47,6 +46,7 @@ def parse_arguments():
         "--output",
         "-o",
         type=str,
+        required=False,
         default="copied.bp",
         help="Output file name (default: copied.bp)",
     )
@@ -66,7 +66,7 @@ def main():
     size = comm.Get_size()
 
     if rank == 0:
-        times_file = open("compress_times.txt", "w")
+        times_file = open("copied_times.txt", "w")
         times_file.write(f"Program started at {program_start:.6f}\n")
     else:
         times_file = None
@@ -124,4 +124,5 @@ def main():
 
 
 if __name__ == "__main__":
+    install()
     main()

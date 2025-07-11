@@ -11,15 +11,19 @@ def parse_arguments():
         description="Generate 2D plots from ADIOS2 BP file variable."
     )
     parser.add_argument(
-        "--bpfile1", "-bp1", type=str, required=True, help="Path to input .bp file"
-    )
-    parser.add_argument(
-        "--read_io",
-        "-r",
+        "--input",
+        "-in",
         type=str,
         required=True,
-        default="ReadIO",
-        help="IO name for reading the BP file",
+        help="Adios input file",
+    )
+    parser.add_argument(
+        "--readIO",
+        "-rio",
+        type=str,
+        default="reader1",
+        required=False,
+        help="IO Name for the first Adios file (default: reader1)",
     )
     parser.add_argument(
         "--vars",
@@ -36,7 +40,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    r = ReaderClass.Reader(args.read_io, args.bpfile1, xml=args.xml)
+    r = ReaderClass.Reader(args.readIO, args.input, xml=args.xml)
     vars = args.vars.split(",")
 
     output_dir = "../RESULTS"
