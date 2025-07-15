@@ -32,6 +32,7 @@ def calculate_errors(original, reconstructed):
     return linf_error, l1_error, l2_error, linf_error
 
 
+# -----------------------------------------------------------
 def build_progressive_array_general(data, min_size=8):
     H, W = data.shape
     h_sizes = []
@@ -129,7 +130,7 @@ def extract_level_general(progressive_array, target_shape, shape_sequence, min_s
     i += h_half * w_half
     out[1::2, 1::2] = flat[i : i + h_half * w_half].reshape((h_half, w_half))
     return out
-
+# -------------------------------------------------------------
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

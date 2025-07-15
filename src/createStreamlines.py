@@ -6,7 +6,7 @@ from scipy.interpolate import RegularGridInterpolator
 import ReaderClass
 import WrighterClass
 import re
-
+import math
 
 def rk4_streamline_from_grid(
     x0,
@@ -23,11 +23,11 @@ def rk4_streamline_from_grid(
     zlim=None,
 ):
     is_3d = vz is not None and z0 is not None
-
+    
     if is_3d:
-        zgrid = np.linspace(0, 1, vx.shape[0])
-        ygrid = np.linspace(0, 1, vx.shape[1])
-        xgrid = np.linspace(0, 1, vx.shape[2])
+        zgrid = np.linspace(0, 1, vx.shape[0]) 
+        ygrid = np.linspace(0, 1, vx.shape[1]) 
+        xgrid = np.linspace(0, 1, vx.shape[2]) 
 
         interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx)
         interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy)
@@ -47,6 +47,7 @@ def rk4_streamline_from_grid(
                 return np.array([0.0, 0.0, 0.0])
 
     else:
+        z0 = np.zeros(x0.shape[0])
         ygrid = np.linspace(0, 1, vx.shape[0])
         xgrid = np.linspace(0, 1, vx.shape[1])
 
@@ -70,12 +71,12 @@ def rk4_streamline_from_grid(
     coords_y = []
     coords_z = []
     offsets = [0]
-
+    cnt  = 0 
+    
     for i in range(len(x0)):
         x = x0[i]
         y = y0[i]
-        z = z0[i] if is_3d else None
-
+        z = z0[i] 
         cnt = 0
         arc_len = 0
         path = [(x, y, z)] if is_3d else [(x, y)]
@@ -104,6 +105,7 @@ def rk4_streamline_from_grid(
                     (x - x_prev) ** 2 + (y - y_prev) ** 2 + (z - z_prev) ** 2
                 )
             else:
+                
                 k1 = vector_field(x, y)
                 k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
                 k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
@@ -113,6 +115,7 @@ def rk4_streamline_from_grid(
                 x += dx
                 y += dy
                 arc_len += np.sqrt((x - x_prev) ** 2 + (y - y_prev) ** 2)
+      
 
             if xlim and (x < xlim[0] or x > xlim[1]):
                 break
@@ -120,6 +123,13 @@ def rk4_streamline_from_grid(
                 break
             if is_3d and zlim and (z < zlim[0] or z > zlim[1]):
                 break
+            if(cnt > 1):
+                
+                d = math.sqrt((x0[i]-x)**2 + (y0[i]-y)**2+ (z0[i] - z)**2 )
+
+                if d < 0.0001:
+                    print(d,x,y)
+                    break
 
             if is_3d:
                 path.append((x, y, z))
@@ -285,6 +295,15 @@ def parse_arguments():
         default=4500,
         help="Number of RK steps to take (default: 4500)",
     )
+    
+    parser.add_argument(
+       "--max_length",
+       "-MLen",
+       required=False,
+       default=4.5,
+       type=float,
+       help="The max length you want the streamlines to be" 
+    )
 
     return parser.parse_args()
 
@@ -344,7 +363,7 @@ def main():
                 y_seeds,
                 data[0],
                 data[1],
-                max_len=10,
+                max_len=args.max_length,
                 dt=dt,
                 max_steps=num_rk_steps,
                 xlim=None,
@@ -372,7 +391,7 @@ def main():
                 data[0],
                 data[1],
                 data[2],
-                max_len=10,
+                max_len=args.max_length,
                 dt=dt,
                 max_steps=num_rk_steps,
                 xlim=None,
