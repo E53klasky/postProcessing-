@@ -212,7 +212,7 @@ def main():
         y_grid = np.linspace(0, 1, ny)
         X, Y = np.meshgrid(x_grid, y_grid)
         
-        skip = max(1, min(nx, ny) // 15) 
+        skip = max(1, min(nx, ny) // 30) 
         plt.quiver(X[::skip, ::skip], Y[::skip, ::skip], U[::skip, ::skip], V[::skip, ::skip], 
                   angles='xy', alpha=0.7, color='blue', width=0.003)
         
