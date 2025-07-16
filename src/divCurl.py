@@ -215,6 +215,7 @@ def main():
     if rank == 0:
         times_file = open("div_curl_times.txt", "w")
         times_file.write(f"Program started at {program_start:.6f}\n")
+        times_file.flush()
     else:
         times_file = None
 
@@ -232,6 +233,8 @@ def main():
         current_step = reader.current_step()
         if rank == 0:
             times_file.write(f"\nReading step: {int(current_step)}\n")
+            times_file.flush()  
+            
         print(f"Reading step: {int(current_step)}")
         writer.begin_step()
 
@@ -268,10 +271,12 @@ def main():
             times_file.write(
                 f"Variable: {var_names[1]}, Read time: {vy_read_end - vy_read_start:.6f} s\n"
             )
+            times_file.flush()
             if len(var_names) == 3:
                 times_file.write(
                     f"Variable: {var_names[2]}, Read time: {vz_read_time:.6f} s\n"
                 )
+                times_file.flush()
 
         if vx.ndim == 3 and vx.shape[0] == 1:
             vx = np.squeeze(vx)
@@ -297,6 +302,7 @@ def main():
                     f"Curl calculation time: {curl_end - curl_start:.6f} s\n"
                     f"Write time: {write_end - write_start:.6f} s\n"
                 )
+                times_file.flush()
 
         elif vx.ndim == 2:
             div_start = time.time()
@@ -318,6 +324,7 @@ def main():
                     f"Curl calculation time: {curl_end - curl_start:.6f} s\n"
                     f"Write time: {write_end - write_start:.6f} s\n"
                 )
+                times_file.flush()
 
         else:
             div_start = time.time()
@@ -343,11 +350,12 @@ def main():
                 )
 
         reader.end_step()
-        writer.end_step()
+        writer.end_step() 
         step_end = time.time()
 
         if rank == 0:
             times_file.write(f"Step time: {step_end - step_start:.6f} s\n")
+            times_file.flush()
 
     reader.close()
     writer.close()

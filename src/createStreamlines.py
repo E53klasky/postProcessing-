@@ -126,10 +126,11 @@ def rk4_streamline_from_grid(
             if(cnt > 1):
                 
                 d = math.sqrt((x0[i]-x)**2 + (y0[i]-y)**2+ (z0[i] - z)**2 )
-
-                if d < 0.0001:
-                    print(d,x,y)
-                    break
+                
+                # comment out for 
+                # if d < 0.0001:
+                #     print(d,x,y)
+                #     break
 
             if is_3d:
                 path.append((x, y, z))
@@ -302,7 +303,7 @@ def parse_arguments():
        required=False,
        default=4.5,
        type=float,
-       help="The max length you want the streamlines to be" 
+       help="The max length you want the streamlines to be (default: 4.5)" 
     )
 
     return parser.parse_args()
@@ -403,6 +404,10 @@ def main():
             coords_z = np.ascontiguousarray(np.array(coords_z, dtype=np.float64))
             offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
 
+            coords_x = coords_x[0,:]
+            coords_y = coords_y[0,:]
+            coords_z = coords_z[0,:]
+            
             wrigher.write("coords_x", coords_x)
             wrigher.write("coords_y", coords_y)
             wrigher.write("coords_z", coords_z)

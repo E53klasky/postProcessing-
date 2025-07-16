@@ -191,7 +191,7 @@ def main():
         print(f"plot saved to {output_dir}/all_streamlines_step_{current_step}.png")
         plt.close()
 
-        # Plot vector field
+
         plt.figure(figsize=(10, 8))
 
         if len(u_vals.shape) == 1:
