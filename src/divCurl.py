@@ -233,8 +233,8 @@ def main():
         current_step = reader.current_step()
         if rank == 0:
             times_file.write(f"\nReading step: {int(current_step)}\n")
-            times_file.flush()  
-            
+            times_file.flush()
+
         print(f"Reading step: {int(current_step)}")
         writer.begin_step()
 
@@ -350,7 +350,7 @@ def main():
                 )
 
         reader.end_step()
-        writer.end_step() 
+        writer.end_step()
         step_end = time.time()
 
         if rank == 0:

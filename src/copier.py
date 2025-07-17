@@ -50,7 +50,7 @@ def parse_arguments():
         default="copied.bp",
         help="Output file name (default: copied.bp)",
     )
-    
+
     parser.add_argument(
         "--sleep",
         "-s",
@@ -59,16 +59,15 @@ def parse_arguments():
         default=1,
         help="sleep time in seconds",
     )
-    
+
     return parser.parse_args()
 
 
 def main():
     program_start = time.time()
-    
-    
+
     parser = parse_arguments()
-    
+
     sleep_time = parser.sleep
     input = parser.input
     readIO = parser.readIO

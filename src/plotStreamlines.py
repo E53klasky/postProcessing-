@@ -67,7 +67,7 @@ def parse_arguments():
     parser.add_argument(
         "--var_offset", type=str, required=True, help="Variable name for offsets"
     )
-    
+
     parser.add_argument(
         "--velocity_file",
         "-vf",
@@ -75,7 +75,7 @@ def parse_arguments():
         required=True,
         help="Adios file with velocity data",
     )
-    
+
     parser.add_argument(
         "--velocity_readIO",
         "-vrio",
@@ -84,12 +84,18 @@ def parse_arguments():
         required=False,
         help="IO Name for the velocity Adios file (default: reader2)",
     )
-    
+
     parser.add_argument(
-        "--var_u", type=str, required=True, help="Variable name for u velocity component"
+        "--var_u",
+        type=str,
+        required=True,
+        help="Variable name for u velocity component",
     )
     parser.add_argument(
-        "--var_v", type=str, required=True, help="Variable name for v velocity component"
+        "--var_v",
+        type=str,
+        required=True,
+        help="Variable name for v velocity component",
     )
 
     return parser.parse_args()
@@ -97,7 +103,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    
+
     r_segments = Reader(args.readIO, args.input, xml=args.xml)
     r_velocity = Reader(args.velocity_readIO, args.velocity_file, xml=args.xml)
 
@@ -105,7 +111,7 @@ def main():
         status_segments = r_segments.begin_step()
         if bindings.StepStatus.OK != status_segments:
             break
-            
+
         status_velocity = r_velocity.begin_step()
         if bindings.StepStatus.OK != status_velocity:
             break
@@ -114,7 +120,7 @@ def main():
         print(f"Reading step: {int(current_step)}")
 
         r_segments.set_read_vars([args.var_x, args.var_y, args.var_offset])
-        
+
         r_velocity.set_read_vars([args.var_u, args.var_v])
 
         if (
@@ -124,7 +130,7 @@ def main():
         ):
             print("Segment variables not found in the stream.")
             break
-            
+
         if (
             r_velocity.vars_Out.get(args.var_u) is None
             or r_velocity.vars_Out.get(args.var_v) is None
@@ -135,24 +141,21 @@ def main():
         x_vals = r_segments.read_step(args.var_x)
         y_vals = r_segments.read_step(args.var_y)
         offsets = r_segments.read_step(args.var_offset)
-        
 
         u_vals = r_velocity.read_step(args.var_u)
         v_vals = r_velocity.read_step(args.var_v)
-        
+
         if len(u_vals.shape) == 3 and u_vals.shape[0] == 1:
-            u_vals = u_vals[0,:,:]
-            v_vals = v_vals[0,:,:]
+            u_vals = u_vals[0, :, :]
+            v_vals = v_vals[0, :, :]
 
         streamlines = extract_streamlines_from_segments(x_vals, y_vals, offsets)
-        
 
         normalized_streamlines = streamlines
 
         output_dir = "../RESULTS"
         os.makedirs(output_dir, exist_ok=True)
 
-        
         plt.figure(figsize=(10, 8))
         for idx, streamline in enumerate(normalized_streamlines):
             if len(streamline) < 4:
@@ -175,7 +178,9 @@ def main():
             plt.legend()
             plt.tight_layout()
             plt.savefig(f"{output_dir}/streamline_{idx:03d}_step_{current_step}.png")
-            print(f"plot saved to {output_dir}/streamline_{idx:03d}_step_{current_step}.png")
+            print(
+                f"plot saved to {output_dir}/streamline_{idx:03d}_step_{current_step}.png"
+            )
             plt.close(plt_individual)
 
         plt.title(f"All Streamlines (Step {current_step}) - Normalized")
@@ -191,7 +196,6 @@ def main():
         print(f"plot saved to {output_dir}/all_streamlines_step_{current_step}.png")
         plt.close()
 
-
         plt.figure(figsize=(10, 8))
 
         if len(u_vals.shape) == 1:
@@ -201,21 +205,29 @@ def main():
             else:
                 nx = int(np.sqrt(len(u_vals)))
                 ny = len(u_vals) // nx
-            
-            U = u_vals[:nx*ny].reshape(ny, nx)
-            V = v_vals[:nx*ny].reshape(ny, nx)
+
+            U = u_vals[: nx * ny].reshape(ny, nx)
+            V = v_vals[: nx * ny].reshape(ny, nx)
         else:
             U, V = u_vals, v_vals
             ny, nx = U.shape
-        
+
         x_grid = np.linspace(0, 1, nx)
         y_grid = np.linspace(0, 1, ny)
         X, Y = np.meshgrid(x_grid, y_grid)
-        
-        skip = max(1, min(nx, ny) // 30) 
-        plt.quiver(X[::skip, ::skip], Y[::skip, ::skip], U[::skip, ::skip], V[::skip, ::skip], 
-                  angles='xy', alpha=0.7, color='blue', width=0.003)
-        
+
+        skip = max(1, min(nx, ny) // 30)
+        plt.quiver(
+            X[::skip, ::skip],
+            Y[::skip, ::skip],
+            U[::skip, ::skip],
+            V[::skip, ::skip],
+            angles="xy",
+            alpha=0.7,
+            color="blue",
+            width=0.003,
+        )
+
         plt.title(f"Vector Field (Step {current_step}) - Normalized")
         plt.xlim(0, 1)
         plt.ylim(0, 1)
@@ -228,22 +240,28 @@ def main():
         print(f"plot saved to {output_dir}/vector_field_step_{current_step}.png")
         plt.close()
 
-
         plt.figure(figsize=(12, 10))
-        
 
-        plt.quiver(X[::skip, ::skip], Y[::skip, ::skip], U[::skip, ::skip], V[::skip, ::skip], 
-                  angles='xy', alpha=0.4, color='lightblue', width=0.002, label='Vector Field')
-        
+        plt.quiver(
+            X[::skip, ::skip],
+            Y[::skip, ::skip],
+            U[::skip, ::skip],
+            V[::skip, ::skip],
+            angles="xy",
+            alpha=0.4,
+            color="lightblue",
+            width=0.002,
+            label="Vector Field",
+        )
 
         for idx, streamline in enumerate(normalized_streamlines):
             if len(streamline) < 4:
                 continue
-            
+
             x = streamline[:, 0]
             y = streamline[:, 1]
             plt.plot(x, y, linewidth=2, label=f"Streamline {idx}")
-        
+
         plt.title(f"Vector Field with Streamlines (Step {current_step}) - Normalized")
         plt.xlim(0, 1)
         plt.ylim(0, 1)
@@ -253,8 +271,12 @@ def main():
         plt.grid(True)
         plt.legend(loc="best", fontsize="small")
         plt.tight_layout()
-        plt.savefig(f"{output_dir}/vector_field_with_streamlines_step_{current_step}.png")
-        print(f"plot saved to {output_dir}/vector_field_with_streamlines_step_{current_step}.png")
+        plt.savefig(
+            f"{output_dir}/vector_field_with_streamlines_step_{current_step}.png"
+        )
+        print(
+            f"plot saved to {output_dir}/vector_field_with_streamlines_step_{current_step}.png"
+        )
         plt.close()
 
         r_segments.end_step()
