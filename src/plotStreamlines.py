@@ -8,7 +8,7 @@ from ReaderClass import Reader
 
 
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
-    if len(offsets) <= 1:
+    if len(offsets) <= 2:
         print(
             f"Warning: Only {len(offsets)} offset(s) found. Treating all data as one streamline."
         )
@@ -19,17 +19,25 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
             streamlines = []
         return streamlines
 
-    L = np.max(offsets)
-    n_points_per_streamline = L
-    n_streamlines = len(x_coords) // n_points_per_streamline
-
     streamlines = []
-    for i in range(n_streamlines):
-        start = i * n_points_per_streamline
-        end = start + n_points_per_streamline
-        streamline = np.column_stack((x_coords[start:end], y_coords[start:end]))
-        streamlines.append(streamline)
-
+    
+    start_idx = 0
+    
+    for i, offset in enumerate(offsets):
+        end_idx = int(offset)
+        
+        if end_idx > start_idx and end_idx <= len(x_coords):
+            x_segment = x_coords[start_idx:end_idx]
+            y_segment = y_coords[start_idx:end_idx]
+            
+            if len(x_segment) > 0:
+                streamline = np.column_stack((x_segment, y_segment))
+                streamlines.append(streamline)
+                print(f"Streamline {i}: {len(x_segment)} points (indices {start_idx}:{end_idx})")
+        
+        start_idx = end_idx
+    
+    print(f"Extracted {len(streamlines)} streamlines from {len(x_coords)} total points")
     return streamlines
 
 
@@ -148,7 +156,10 @@ def main():
         if len(u_vals.shape) == 3 and u_vals.shape[0] == 1:
             u_vals = u_vals[0, :, :]
             v_vals = v_vals[0, :, :]
-
+        
+        print(f"Debug info: x_vals shape: {x_vals.shape}, y_vals shape: {y_vals.shape}")
+        print(f"Debug info: offsets shape: {offsets.shape}, offsets values: {offsets}")
+        
         streamlines = extract_streamlines_from_segments(x_vals, y_vals, offsets)
 
         normalized_streamlines = streamlines
@@ -157,17 +168,21 @@ def main():
         os.makedirs(output_dir, exist_ok=True)
 
         plt.figure(figsize=(10, 8))
+        colors = plt.cm.tab10(np.linspace(0, 1, len(normalized_streamlines)))
+        
         for idx, streamline in enumerate(normalized_streamlines):
-            if len(streamline) < 4:
-                print(f"Skipping streamline {idx} (too few points)")
+            if len(streamline) < 2: 
+                print(f"Skipping streamline {idx} (too few points: {len(streamline)})")
                 continue
 
             x = streamline[:, 0]
             y = streamline[:, 1]
-            plt.plot(x, y, label=f"Streamline {idx}")
+            plt.plot(x, y, color=colors[idx], linewidth=2, label=f"Streamline {idx}")
 
             plt_individual = plt.figure(figsize=(8, 6))
-            plt.plot(x, y, color="red", label="RK4 Points")
+            plt.plot(x, y, color="red", linewidth=2, label="Streamline Points")
+            plt.scatter(x[0], y[0], color="green", s=50, label="Start", zorder=5)
+            plt.scatter(x[-1], y[-1], color="blue", s=50, label="End", zorder=5)
             plt.title(f"Streamline {idx} (Step {current_step}) - Normalized")
             plt.xlim(0, 1)
             plt.ylim(0, 1)
@@ -255,12 +270,12 @@ def main():
         )
 
         for idx, streamline in enumerate(normalized_streamlines):
-            if len(streamline) < 4:
+            if len(streamline) < 2:
                 continue
 
             x = streamline[:, 0]
             y = streamline[:, 1]
-            plt.plot(x, y, linewidth=2, label=f"Streamline {idx}")
+            plt.plot(x, y, linewidth=2, color=colors[idx], label=f"Streamline {idx}")
 
         plt.title(f"Vector Field with Streamlines (Step {current_step}) - Normalized")
         plt.xlim(0, 1)
