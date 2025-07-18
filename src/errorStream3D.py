@@ -163,6 +163,7 @@ def plot_rk_step_error(
         ax.set_xlabel("RK Steps", fontsize=12)
         ax.set_ylabel("Error Magnitude", fontsize=12)
         ax.grid(True)
+
     else:
         ax.text(
             0.5,
