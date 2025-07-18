@@ -328,6 +328,7 @@ def check_bounds(name, arr):
     if not np.all((0.0 <= np.array(arr)) & (np.array(arr) <= 1.0)):
         raise ValueError(f"All values in {name} must be between 0 and 1. Got: {arr}")
 
+
 def main():
     args = parse_arguments()
 
@@ -341,8 +342,6 @@ def main():
     x_seeds, y_seeds, z_seeds = parse_seed_points(
         args.seeds_points, num_dims=3 if is_3d else 2
     )
-    
-
 
     check_bounds("x_seeds", x_seeds)
     check_bounds("y_seeds", y_seeds)
@@ -429,7 +428,6 @@ def main():
             coords_y = np.ascontiguousarray(np.array(coords_y, dtype=np.float64))
             coords_z = np.ascontiguousarray(np.array(coords_z, dtype=np.float64))
             offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
-
 
             wrigher.write("coords_x", coords_x)
             wrigher.write("coords_y", coords_y)
