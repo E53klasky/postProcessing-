@@ -9,8 +9,6 @@ from ReaderClass import Reader
 from matplotlib.collections import LineCollection
 from scipy.interpolate import splprep, splev
 
-
-# make this work with 3d maybe
 def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     if len(offsets) <= 1:
         print(

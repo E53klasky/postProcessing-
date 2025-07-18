@@ -4,105 +4,117 @@ from ReaderClass import Reader
 from rich.traceback import install
 import adios2
 import argparse
-from scipy.ndimage import zoom
-
-# this really does not work
-# TODO: fix error wright out, gernalize to mxn not 2^m x2^n,3d, parallel
+from scipy.interpolate import RegularGridInterpolator
+import pyvista as pv
 
 
 def calculate_errors(original, reconstructed):
-    # this does not work
-    # --------------------------------------------------------------------
-    skip_factor = original.shape[0] / reconstructed.shape[0]
-    diff = np.zeros_like(reconstructed, dtype=np.float64)
-    for i in range(reconstructed.shape[0]):
-        for j in range(reconstructed.shape[1]):
-            gt_i = int(i * skip_factor)
-            gt_j = int(j * skip_factor)
-            if gt_i < original.shape[0] and gt_j < original.shape[1]:
-                gt_value = original[gt_i, gt_j]
-                e_value = reconstructed[i, j]
-                diff[i, j] = np.abs(gt_value - e_value)
-            else:
-                diff[i, j] = np.nan
-    # -----------------------------------------------------------------
+    if original.shape != reconstructed.shape:
+        reconstructed = upscale_with_regular_grid_interpolator(
+            reconstructed, original.shape, method="cubic"
+        )
+
+    diff = np.abs(original - reconstructed)
     l1_error = np.sum(diff)
     l2_error = np.sqrt(np.sum(diff**2))
-    linf_error = np.nanmax(diff)
-    return linf_error, l1_error, l2_error, linf_error
+    linf_error = np.max(diff)
+
+    return l1_error, l2_error, linf_error
 
 
-# -----------------------------------------------------------
-def build_progressive_array_general(data, min_size=8):
-    H, W = data.shape
-    h_sizes = []
-    w_sizes = []
+def build_progressive_array_2d(data, min_size=8):
+    for i, dim_size in enumerate(data.shape):
+        assert (
+            dim_size & (dim_size - 1)
+        ) == 0, f"Dimension {i} size {dim_size} must be power of two"
 
-    h, w = H, W
-    while h >= min_size and w >= min_size:
-        h_sizes.append(h)
-        w_sizes.append(w)
-        h //= 2
-        w //= 2
+    ny, nx = data.shape
 
-    h_sizes.reverse()
-    w_sizes.reverse()
+    sizes = []
+    curr_shape = (ny, nx)
+
+    while all(s >= min_size for s in curr_shape):
+        sizes.append(curr_shape)
+        curr_shape = tuple(s // 2 for s in curr_shape)
+
+    sizes = sizes[::-1]
 
     output_chunks = []
-    for i, (h_size, w_size) in enumerate(zip(h_sizes, w_sizes)):
-        step_h = H // h_size
-        step_w = W // w_size
-        sampled = data[::step_h, ::step_w]
+
+    for i, (sy, sx) in enumerate(sizes):
+        step_y = ny // sy
+        step_x = nx // sx
 
         if i == 0:
-            output_chunks.append(sampled.flatten())
+            down = data[::step_y, ::step_x]
+            output_chunks.append(down.flatten())
         else:
+            full = data[::step_y, ::step_x]
             new_points = []
-            new_points.append(sampled[1::2, ::2].flatten())
-            new_points.append(sampled[::2, 1::2].flatten())
-            new_points.append(sampled[1::2, 1::2].flatten())
+
+            new_points.append(full[1::2, ::2].flatten())
+            new_points.append(full[::2, 1::2].flatten())
+            new_points.append(full[1::2, 1::2].flatten())
+
             output_chunks.append(np.concatenate(new_points))
-    return np.concatenate(output_chunks), list(zip(h_sizes, w_sizes))
+
+    return np.concatenate(output_chunks), sizes
 
 
-def find_best_resolution(progressive_array, shape_seq, full_data, error_bound):
-    for shape in shape_seq:
-        reconstructed = extract_level_general(progressive_array, shape, shape_seq)
+def build_progressive_array_3d(data, min_size=8):
+    for i, dim_size in enumerate(data.shape):
+        assert (
+            dim_size & (dim_size - 1)
+        ) == 0, f"Dimension {i} size {dim_size} must be power of two"
 
-        if reconstructed.shape != full_data.shape:
+    nz, ny, nx = data.shape
 
-            zoom_factors = (
-                full_data.shape[0] / reconstructed.shape[0],
-                full_data.shape[1] / reconstructed.shape[1],
-            )
-            resized = zoom(reconstructed, zoom_factors, order=1)
+    sizes = []
+    curr_shape = (nz, ny, nx)
+
+    while all(s >= min_size for s in curr_shape):
+        sizes.append(curr_shape)
+        curr_shape = tuple(s // 2 for s in curr_shape)
+
+    sizes = sizes[::-1]
+
+    output_chunks = []
+
+    for i, (sz, sy, sx) in enumerate(sizes):
+        step_z = nz // sz
+        step_y = ny // sy
+        step_x = nx // sx
+
+        if i == 0:
+            down = data[::step_z, ::step_y, ::step_x]
+            output_chunks.append(down.flatten())
         else:
-            resized = reconstructed
+            full = data[::step_z, ::step_y, ::step_x]
+            new_points = []
 
-        error, l1_error, l2_error, linf_error = calculate_errors(full_data, resized)
-        print(f"Shape {shape}: error = {error:.6f}")
-        print(f"The L1 error = {l1_error}")
-        print(f"the L2 error = {l2_error} ")
-        print(f"the L inf error = {linf_error} ")
+            new_points.append(full[1::2, ::2, ::2].flatten())
+            new_points.append(full[::2, 1::2, ::2].flatten())
+            new_points.append(full[::2, ::2, 1::2].flatten())
+            new_points.append(full[1::2, 1::2, ::2].flatten())
+            new_points.append(full[1::2, ::2, 1::2].flatten())
+            new_points.append(full[::2, 1::2, 1::2].flatten())
+            new_points.append(full[1::2, 1::2, 1::2].flatten())
 
-        if error <= error_bound:
-            return shape
+            output_chunks.append(np.concatenate(new_points))
 
-    return shape_seq[-1]
+    return np.concatenate(output_chunks), sizes
 
 
-def extract_level_general(progressive_array, target_shape, shape_sequence, min_size=8):
-    target_h, target_w = target_shape
-    sizes = shape_sequence
-    index = sizes.index((target_h, target_w))
+def extract_level_2d(progressive_array, target_shape, sizes):
+    index = sizes.index(target_shape)
 
     chunks = []
-    for i, (h_size, w_size) in enumerate(sizes):
+    for i, shape in enumerate(sizes):
         if i == 0:
-            chunks.append(h_size * w_size)
+            chunks.append(np.prod(shape))
         else:
-            prev = sizes[i - 1]
-            added = h_size * w_size - prev[0] * prev[1]
+            prev_shape = sizes[i - 1]
+            added = np.prod(shape) - np.prod(prev_shape)
             chunks.append(added)
 
     start = sum(chunks[:index])
@@ -110,50 +122,170 @@ def extract_level_general(progressive_array, target_shape, shape_sequence, min_s
     flat = progressive_array[start:end]
 
     if index == 0:
-        return flat.reshape(target_h, target_w)
+        return flat.reshape(target_shape)
 
-    prev_h, prev_w = sizes[index - 1]
-    prev_data = extract_level_general(
-        progressive_array, (prev_h, prev_w), shape_sequence, min_size
-    )
+    prev_shape = sizes[index - 1]
+    prev_data = extract_level_2d(progressive_array, prev_shape, sizes)
 
-    out = np.zeros((target_h, target_w))
+    out = np.zeros(target_shape)
     out[::2, ::2] = prev_data
 
+    ty, tx = target_shape
+    half_y, half_x = ty // 2, tx // 2
     i = 0
-    h_half = target_h // 2
-    w_half = target_w // 2
 
-    out[1::2, ::2] = flat[i : i + h_half * w_half].reshape((h_half, w_half))
-    i += h_half * w_half
-    out[::2, 1::2] = flat[i : i + h_half * w_half].reshape((h_half, w_half))
-    i += h_half * w_half
-    out[1::2, 1::2] = flat[i : i + h_half * w_half].reshape((h_half, w_half))
+    quadrant_size_y_even = half_y * half_x
+    quadrant_size_x_even = half_y * half_x
+    quadrant_size_both_odd = half_y * half_x
+
+    out[1::2, ::2] = flat[i : i + quadrant_size_y_even].reshape((half_y, half_x))
+    i += quadrant_size_y_even
+    out[::2, 1::2] = flat[i : i + quadrant_size_x_even].reshape((half_y, half_x))
+    i += quadrant_size_x_even
+    out[1::2, 1::2] = flat[i : i + quadrant_size_both_odd].reshape((half_y, half_x))
+
     return out
-# -------------------------------------------------------------
+
+
+def extract_level_3d(progressive_array, target_shape, sizes):
+    index = sizes.index(target_shape)
+
+    chunks = []
+    for i, shape in enumerate(sizes):
+        if i == 0:
+            chunks.append(np.prod(shape))
+        else:
+            prev_shape = sizes[i - 1]
+            added = np.prod(shape) - np.prod(prev_shape)
+            chunks.append(added)
+
+    start = sum(chunks[:index])
+    end = start + chunks[index]
+    flat = progressive_array[start:end]
+
+    if index == 0:
+        return flat.reshape(target_shape)
+
+    prev_shape = sizes[index - 1]
+    prev_data = extract_level_3d(progressive_array, prev_shape, sizes)
+
+    out = np.zeros(target_shape)
+    out[::2, ::2, ::2] = prev_data
+
+    tz, ty, tx = target_shape
+    half_z, half_y, half_x = tz // 2, ty // 2, tx // 2
+    i = 0
+
+    octant_size = half_z * half_y * half_x
+
+    out[1::2, ::2, ::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[::2, 1::2, ::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[::2, ::2, 1::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[1::2, 1::2, ::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[1::2, ::2, 1::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[::2, 1::2, 1::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+    i += octant_size
+    out[1::2, 1::2, 1::2] = flat[i : i + octant_size].reshape((half_z, half_y, half_x))
+
+    return out
+
+
+def upscale_with_regular_grid_interpolator(data, target_shape, method="cubic"):
+    dims = len(data.shape)
+
+    if dims == 2:
+        ny, nx = data.shape
+        ty, tx = target_shape
+
+        y_old = np.linspace(0, 1, ny)
+        x_old = np.linspace(0, 1, nx)
+
+        interpolator = RegularGridInterpolator((y_old, x_old), data, method=method)
+        y_new = np.linspace(0, 1, ty)
+        x_new = np.linspace(0, 1, tx)
+
+        Y_new, X_new = np.meshgrid(y_new, x_new, indexing="ij")
+        points = np.stack([Y_new.ravel(), X_new.ravel()], axis=1)
+
+        result = interpolator(points).reshape(target_shape)
+
+    elif dims == 3:
+        nz, ny, nx = data.shape
+        tz, ty, tx = target_shape
+
+        z_old = np.linspace(0, 1, nz)
+        y_old = np.linspace(0, 1, ny)
+        x_old = np.linspace(0, 1, nx)
+
+        interpolator = RegularGridInterpolator(
+            (z_old, y_old, x_old), data, method=method
+        )
+
+        z_new = np.linspace(0, 1, tz)
+        y_new = np.linspace(0, 1, ty)
+        x_new = np.linspace(0, 1, tx)
+
+        Z_new, Y_new, X_new = np.meshgrid(z_new, y_new, x_new, indexing="ij")
+        points = np.stack([Z_new.ravel(), Y_new.ravel(), X_new.ravel()], axis=1)
+
+        result = interpolator(points).reshape(target_shape)
+
+    else:
+        raise ValueError(f"Unsupported dimensionality: {dims}")
+
+    return result
+
+
+def find_best_resolution(progressive_array, sizes, full_data, error_bound):
+    dims = len(full_data.shape)
+    best_resolution = sizes[-1]
+
+    for size_or_shape in sizes:
+        if dims == 2:
+            reconstructed = extract_level_2d(progressive_array, size_or_shape, sizes)
+        elif dims == 3:
+            reconstructed = extract_level_3d(progressive_array, size_or_shape, sizes)
+        else:
+            raise ValueError(f"Unsupported dimensionality: {dims}")
+
+        if reconstructed.shape != full_data.shape:
+            reconstructed = upscale_with_regular_grid_interpolator(
+                reconstructed, full_data.shape, method="cubic"
+            )
+
+        l1_error, l2_error, linf_error = calculate_errors(full_data, reconstructed)
+
+        print(
+            f"Shape {size_or_shape}: Linf error = {linf_error:.6f}, L1 error = {l1_error:.6f}, L2 error = {l2_error:.6f}"
+        )
+
+        if linf_error <= error_bound:
+            best_resolution = size_or_shape
+            break
+
+    return best_resolution
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Decimates a variable to be smaller by some error bound."
     )
     parser.add_argument(
-        "--file1",
-        type=str,
-        required=True,
-        help="First Adios file with data",
+        "--input","-in", type=str, required=True, help="First Adios file with data"
     )
     parser.add_argument(
         "--IO_Name1",
         type=str,
         default="reader1",
-        help="IO Name for the first Adios file (default: reader1)",
+        help="IO Name for the first Adios file",
     )
     parser.add_argument(
-        "--var",
-        "-v",
-        type=str,
-        required=True,
-        help="Variable to decimate",
+        "--vars", "-v", type=str, required=True, help="Variable to decimate seperated by a comma"
     )
     parser.add_argument(
         "--error_bound", "-eb", type=float, required=True, help="Error tolerance level"
@@ -162,7 +294,7 @@ def parse_arguments():
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
     )
     parser.add_argument(
-        "--Declare_Write_IO", help="IO name for writing output", required=True
+        "--Declare_Write_IO", help="IO name for writing output", required=False, default="wio"
     )
     parser.add_argument(
         "--output_file",
@@ -170,62 +302,102 @@ def parse_arguments():
         default="Decimated.bp",
         help="Output BP file for the result",
     )
+    parser.add_argument(
+        "--min_size", type=int, default=8, help="Minimum resolution level"
+    )
 
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
-    var = args.var
-    error_bound = args.error_bound
 
-    r = Reader(args.IO_Name1, args.file1, args.xml)
+    r = Reader(args.IO_Name1, args.input, args.xml)
     wrighter = Writer(args.Declare_Write_IO, args.output_file, args.xml)
 
     while True:
         status = r.begin_step()
-
+        
         if status != adios2.bindings.StepStatus.OK:
             break
-
+        wrighter.begin_step()
         current_step = r.current_step()
         print(f"Reading step: {int(current_step)}")
 
-        r.set_read_vars([var])
-        data = r.read_step(var)
-        # add logic here to make it 2d  also may die bc of the -1
-        if len(data.shape) == 3 and data.shape[0] == 1:
-            data = data[0, :, :]
-        h, w = data.shape
-        trimmed_h = h if h % 2 == 0 else h - 1
-        trimmed_w = w if w % 2 == 0 else w - 1
-        data = data[:trimmed_h, :trimmed_w]
+        var_names = [v.strip() for v in args.vars.split(",")]
+        for var in var_names:
+            print(f"  Processing variable: '{var}'")
 
-        progressive, shape_seq = build_progressive_array_general(data, min_size=8)
+            r.set_read_vars(var_names)
+            data = r.read_step(var)
 
-        error_bound = args.error_bound
-        best_shape = find_best_resolution(progressive, shape_seq, data, error_bound)
+            if len(data.shape) == 3 and data.shape[0] == 1:
+                data = data[0, :, :]
 
-        level_data = extract_level_general(
-            progressive,
-            best_shape,
-            shape_sequence=shape_seq,
-            min_size=8,
-        )
+            print(f"Input data shape: {data.shape}")
+            dims = len(data.shape)
 
-        diff, l1, l2, linf = calculate_errors(data, level_data)
+            if dims == 2:
+                for i, dim_size in enumerate(data.shape):
+                    assert (
+                        dim_size & (dim_size - 1)
+                    ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+                progressive, sizes = build_progressive_array_2d(
+                    data, min_size=args.min_size
+                )
+            elif dims == 3:
+                for i, dim_size in enumerate(data.shape):
+                    assert (
+                        dim_size & (dim_size - 1)
+                    ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+                progressive, sizes = build_progressive_array_3d(
+                    data, min_size=args.min_size
+                )
+            else:
+                raise ValueError(f"Unsupported dimensionality: {dims}")
 
-        wrighter.begin_step()
-        wrighter.write(var, level_data)
-        # this does not work -------------------------------------------------
-        wrighter.write("l1_error", np.array([l1]))
-        wrighter.write("l2_error", np.array([l2]))
-        wrighter.write("linf_error", np.array([linf]))
-        wrighter.write("error_bound", np.array([error_bound]))
-        # this ----------------------------------------------------------------
-        wrighter.end_step()
+            best_size_or_shape = find_best_resolution(
+                progressive, sizes, data, args.error_bound
+            )
 
+            if dims == 2:
+                level_data = extract_level_2d(progressive, best_size_or_shape, sizes)
+            else:
+                level_data = extract_level_3d(progressive, best_size_or_shape, sizes)
+
+            l1_error, l2_error, linf_error = calculate_errors(data, level_data)
+
+            print(f"Final resolution: {best_size_or_shape}")
+            print(
+                f"Final errors - L1: {l1_error:.6f}, L2: {l2_error:.6f}, Linf: {linf_error:.6f}"
+            )
+
+            
+            wrighter.write(var, level_data)
+            wrighter.write("l1_error", np.array([l1_error]))
+            wrighter.write("l2_error", np.array([l2_error]))
+            wrighter.write("linf_error", np.array([linf_error]))
+            wrighter.write("error_bound", np.array([args.error_bound]))
+            
+            
+            if dims == 2:
+                ny, nx = level_data.shape
+                grid = pv.ImageData()
+                grid.dimensions = (nx, ny, 1)
+                grid.origin = (0.0, 0.0, 0.0)
+                grid.spacing = (1.0 / (nx - 1), 1.0 / (ny - 1), 1.0)
+                grid.point_data["values"] = level_data.flatten(order="F")
+                grid.save("output.vtk")
+            else:
+                nz, ny, nx = level_data.shape
+                grid = pv.ImageData()
+                grid.dimensions = (nx, ny, nz)
+                grid.origin = (0.0, 0.0, 0.0)
+                grid.spacing = (1.0 / (nx - 1), 1.0 / (ny - 1), 1.0 / (nz - 1))
+                grid.point_data["values"] = level_data.flatten(order="F")
+                grid.save("output.vtk")
         r.end_step()
+        wrighter.end_step()
 
     r.close()
     wrighter.close()
