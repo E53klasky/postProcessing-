@@ -276,7 +276,7 @@ def parse_arguments():
         description="Decimates a variable to be smaller by some error bound."
     )
     parser.add_argument(
-        "--input","-in", type=str, required=True, help="First Adios file with data"
+        "--input", "-in", type=str, required=True, help="First Adios file with data"
     )
     parser.add_argument(
         "--IO_Name1",
@@ -285,7 +285,11 @@ def parse_arguments():
         help="IO Name for the first Adios file",
     )
     parser.add_argument(
-        "--vars", "-v", type=str, required=True, help="Variable to decimate seperated by a comma"
+        "--vars",
+        "-v",
+        type=str,
+        required=True,
+        help="Variable to decimate seperated by a comma",
     )
     parser.add_argument(
         "--error_bound", "-eb", type=float, required=True, help="Error tolerance level"
@@ -294,7 +298,10 @@ def parse_arguments():
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
     )
     parser.add_argument(
-        "--Declare_Write_IO", help="IO name for writing output", required=False, default="wio"
+        "--Declare_Write_IO",
+        help="IO name for writing output",
+        required=False,
+        default="wio",
     )
     parser.add_argument(
         "--output_file",
@@ -317,7 +324,7 @@ def main():
 
     while True:
         status = r.begin_step()
-        
+
         if status != adios2.bindings.StepStatus.OK:
             break
         wrighter.begin_step()
@@ -372,14 +379,12 @@ def main():
                 f"Final errors - L1: {l1_error:.6f}, L2: {l2_error:.6f}, Linf: {linf_error:.6f}"
             )
 
-            
             wrighter.write(var, level_data)
             wrighter.write("l1_error", np.array([l1_error]))
             wrighter.write("l2_error", np.array([l2_error]))
             wrighter.write("linf_error", np.array([linf_error]))
             wrighter.write("error_bound", np.array([args.error_bound]))
-            
-            
+
             if dims == 2:
                 ny, nx = level_data.shape
                 grid = pv.ImageData()
