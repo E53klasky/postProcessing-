@@ -27,13 +27,18 @@ def rk4_streamline_from_grid(
 
     if is_3d:
         # zgrid = np.linspace(0, 1, vx.shape[0])
-        # ygrid = np.linspace(0, 1, vx.shape[1])
+        # ygrid = np.linspace(0, 1, vx.shape[1])  
         # xgrid = np.linspace(0, 1, vx.shape[2])
-        # hard code it ofr now take in something for the 6,12,20
 
         zgrid = np.linspace(0, 1.0, vz.shape[0])
-        ygrid = np.linspace(0, 1.0, vy.shape[1])
-        xgrid = np.linspace(0, 1.0, vx.shape[2])
+        ygrid = np.linspace(0, 1.0, vy.shape[1]) 
+        xgrid = np.linspace(0, 1.0, vx.shape[2])   
+        
+        
+        assert vz.shape[0] == vy.shape[0] == vx.shape[0], "Mismatch in z-dimension (axis 0)"
+        assert vz.shape[1] == vy.shape[1] == vx.shape[1], "Mismatch in y-dimension (axis 1)"
+        assert vz.shape[2] == vy.shape[2] == vx.shape[2], "Mismatch in x-dimension (axis 2)"
+
 
         interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx, method="cubic")
         interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy, method="cubic")
@@ -55,14 +60,13 @@ def rk4_streamline_from_grid(
     else:
 
         z0 = np.zeros(x0.shape[0])
-        # take in something for the 1
-        # need zoom for this
+
         ygrid = np.linspace(0, 1, vy.shape[0])
         xgrid = np.linspace(0, 1, vx.shape[1])
-        print("vx shape:", vx.shape)
-        print("vy shape:", vy.shape)
-        print("xgrid:", xgrid.shape)
-        print("ygrid:", ygrid.shape)
+
+        assert vy.shape[0] == vx.shape[0], "Mismatch in z-dimension (axis 0)"
+        assert vy.shape[1] == vx.shape[1], "Mismatch in y-dimension (axis 1)"
+
 
         interp_vx = RegularGridInterpolator((ygrid, xgrid), vx, method="cubic")
         interp_vy = RegularGridInterpolator((ygrid, xgrid), vy, method="cubic")
