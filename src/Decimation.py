@@ -292,7 +292,7 @@ def parse_arguments():
         help="Variable to decimate seperated by a comma",
     )
     parser.add_argument(
-        "--error_bound", "-eb", type=float, required=False, help="Error tolerance level"
+        "--error_bound", "-eb", type=float, required=False, default=0, help="Error tolerance level this is the linf error"
     )
     parser.add_argument(
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
@@ -313,7 +313,7 @@ def parse_arguments():
         "--min_size", type=int, default=8, help="Minimum resolution level"
     )
     
-    parser.add_argument("--level", "-l", type=int, default=None, help="level to use 0  is the coorest", required=False)
+    parser.add_argument("--level", "-l", type=int, default=None, help="level 0  is the coorest it is done by the lowest level increase by powers of 2", required=False)
 
     return parser.parse_args()
 
@@ -345,7 +345,19 @@ def main():
 
             print(f"Input data shape: {data.shape}")
             dims = len(data.shape)
+            
+            if args.level is not None:
+                max_levels = [int(np.log2(s)) for s in data.shape]
+                max_level = min(max_levels) - int(np.log2(args.min_size))
 
+                if args.level < 0 or args.level > max_level:
+                    
+                    raise ValueError(
+                        f"Invalid level {args.level}. Allowed range: 0 to {max_level} "
+                        f"based on data shape {data.shape}."
+                    )
+
+            
             if dims == 2:
                 for i, dim_size in enumerate(data.shape):
                     assert (
@@ -365,7 +377,7 @@ def main():
             else:
                 raise ValueError(f"Unsupported dimensionality: {dims}")
             
-            # if level is set then best size or shape  =  sizes[level] level is user input 
+
             if args.level is not None:
                 best_size_or_shape =  sizes[args.level]
             else:
