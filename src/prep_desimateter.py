@@ -104,7 +104,7 @@ def resample_to_power_of_two(data, target_shape):
 
     original_shape = data.shape
     original_axes = [np.linspace(0, 1, s) for s in original_shape]
-    # send and reviceve two 
+    # send and reviceve two
     interpolator = RegularGridInterpolator(
         original_axes,
         data.astype(np.float64),

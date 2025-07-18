@@ -20,23 +20,25 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
         return streamlines
 
     streamlines = []
-    
+
     start_idx = 0
-    
+
     for i, offset in enumerate(offsets):
         end_idx = int(offset)
-        
+
         if end_idx > start_idx and end_idx <= len(x_coords):
             x_segment = x_coords[start_idx:end_idx]
             y_segment = y_coords[start_idx:end_idx]
-            
+
             if len(x_segment) > 0:
                 streamline = np.column_stack((x_segment, y_segment))
                 streamlines.append(streamline)
-                print(f"Streamline {i}: {len(x_segment)} points (indices {start_idx}:{end_idx})")
-        
+                print(
+                    f"Streamline {i}: {len(x_segment)} points (indices {start_idx}:{end_idx})"
+                )
+
         start_idx = end_idx
-    
+
     print(f"Extracted {len(streamlines)} streamlines from {len(x_coords)} total points")
     return streamlines
 
@@ -156,10 +158,10 @@ def main():
         if len(u_vals.shape) == 3 and u_vals.shape[0] == 1:
             u_vals = u_vals[0, :, :]
             v_vals = v_vals[0, :, :]
-        
+
         print(f"Debug info: x_vals shape: {x_vals.shape}, y_vals shape: {y_vals.shape}")
         print(f"Debug info: offsets shape: {offsets.shape}, offsets values: {offsets}")
-        
+
         streamlines = extract_streamlines_from_segments(x_vals, y_vals, offsets)
 
         normalized_streamlines = streamlines
@@ -169,9 +171,9 @@ def main():
 
         plt.figure(figsize=(10, 8))
         colors = plt.cm.tab10(np.linspace(0, 1, len(normalized_streamlines)))
-        
+
         for idx, streamline in enumerate(normalized_streamlines):
-            if len(streamline) < 2: 
+            if len(streamline) < 2:
                 print(f"Skipping streamline {idx} (too few points: {len(streamline)})")
                 continue
 

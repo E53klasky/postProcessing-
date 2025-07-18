@@ -27,18 +27,22 @@ def rk4_streamline_from_grid(
 
     if is_3d:
         # zgrid = np.linspace(0, 1, vx.shape[0])
-        # ygrid = np.linspace(0, 1, vx.shape[1])  
+        # ygrid = np.linspace(0, 1, vx.shape[1])
         # xgrid = np.linspace(0, 1, vx.shape[2])
 
         zgrid = np.linspace(0, 1.0, vz.shape[0])
-        ygrid = np.linspace(0, 1.0, vy.shape[1]) 
-        xgrid = np.linspace(0, 1.0, vx.shape[2])   
-        
-        
-        assert vz.shape[0] == vy.shape[0] == vx.shape[0], "Mismatch in z-dimension (axis 0)"
-        assert vz.shape[1] == vy.shape[1] == vx.shape[1], "Mismatch in y-dimension (axis 1)"
-        assert vz.shape[2] == vy.shape[2] == vx.shape[2], "Mismatch in x-dimension (axis 2)"
+        ygrid = np.linspace(0, 1.0, vy.shape[1])
+        xgrid = np.linspace(0, 1.0, vx.shape[2])
 
+        assert (
+            vz.shape[0] == vy.shape[0] == vx.shape[0]
+        ), "Mismatch in z-dimension (axis 0)"
+        assert (
+            vz.shape[1] == vy.shape[1] == vx.shape[1]
+        ), "Mismatch in y-dimension (axis 1)"
+        assert (
+            vz.shape[2] == vy.shape[2] == vx.shape[2]
+        ), "Mismatch in x-dimension (axis 2)"
 
         interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx, method="cubic")
         interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy, method="cubic")
@@ -67,7 +71,6 @@ def rk4_streamline_from_grid(
         assert vy.shape[0] == vx.shape[0], "Mismatch in z-dimension (axis 0)"
         assert vy.shape[1] == vx.shape[1], "Mismatch in y-dimension (axis 1)"
 
-
         interp_vx = RegularGridInterpolator((ygrid, xgrid), vx, method="cubic")
         interp_vy = RegularGridInterpolator((ygrid, xgrid), vy, method="cubic")
 
@@ -83,12 +86,11 @@ def rk4_streamline_from_grid(
             except ValueError:
                 return np.array([0.0, 0.0])
 
-
     paths = []
-    coords_x = []  
-    coords_y = []  
-    coords_z = []  
-    offsets = [0]  
+    coords_x = []
+    coords_y = []
+    coords_z = []
+    offsets = [0]
     cnt = 0
 
     for i in range(len(x0)):
@@ -98,7 +100,6 @@ def rk4_streamline_from_grid(
         cnt = 0
         arc_len = 0
         path = [(x, y, z)] if is_3d else [(x, y)]
-        
 
         coords_x.append(x)
         coords_y.append(y)
@@ -155,7 +156,6 @@ def rk4_streamline_from_grid(
             else:
                 path.append((x, y))
 
-
             coords_x.append(x)
             coords_y.append(y)
 
@@ -168,9 +168,9 @@ def rk4_streamline_from_grid(
 
     return (
         np.array(offsets),
-        np.array(coords_x),  
-        np.array(coords_y),  
-        np.array(coords_z) if is_3d else None, 
+        np.array(coords_x),
+        np.array(coords_y),
+        np.array(coords_z) if is_3d else None,
     )
 
 
