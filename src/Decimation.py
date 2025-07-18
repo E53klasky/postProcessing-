@@ -26,7 +26,7 @@ def build_progressive_array_2d(data, min_size=8):
     for i, dim_size in enumerate(data.shape):
         assert (
             dim_size & (dim_size - 1)
-        ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+        ) == 0, f"Dimension {i} size {dim_size} must be power of two run prep_desimater"
 
     ny, nx = data.shape
 
@@ -65,7 +65,7 @@ def build_progressive_array_3d(data, min_size=8):
     for i, dim_size in enumerate(data.shape):
         assert (
             dim_size & (dim_size - 1)
-        ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+        ) == 0, f"Dimension {i} size {dim_size} must be power of two run prep_desimater"
 
     nz, ny, nx = data.shape
 
@@ -204,7 +204,7 @@ def upscale_with_regular_grid_interpolator(data, target_shape, method="cubic"):
 
         y_old = np.linspace(0, 1, ny)
         x_old = np.linspace(0, 1, nx)
-
+        # send and recive for parallel
         interpolator = RegularGridInterpolator((y_old, x_old), data, method=method)
         y_new = np.linspace(0, 1, ty)
         x_new = np.linspace(0, 1, tx)
@@ -221,7 +221,7 @@ def upscale_with_regular_grid_interpolator(data, target_shape, method="cubic"):
         z_old = np.linspace(0, 1, nz)
         y_old = np.linspace(0, 1, ny)
         x_old = np.linspace(0, 1, nx)
-
+        # send and recive  for parallel
         interpolator = RegularGridInterpolator(
             (z_old, y_old, x_old), data, method=method
         )
@@ -292,7 +292,7 @@ def parse_arguments():
         help="Variable to decimate seperated by a comma",
     )
     parser.add_argument(
-        "--error_bound", "-eb", type=float, required=True, help="Error tolerance level"
+        "--error_bound", "-eb", type=float, required=False, help="Error tolerance level"
     )
     parser.add_argument(
         "--xml", type=str, default=None, help="Optional ADIOS2 XML configuration"
@@ -312,6 +312,8 @@ def parse_arguments():
     parser.add_argument(
         "--min_size", type=int, default=8, help="Minimum resolution level"
     )
+    
+    parser.add_argument("--level", "-l", type=int, default=None, help="level to use 0  is the coorest", required=False)
 
     return parser.parse_args()
 
@@ -348,7 +350,7 @@ def main():
                 for i, dim_size in enumerate(data.shape):
                     assert (
                         dim_size & (dim_size - 1)
-                    ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+                    ) == 0, f"Dimension {i} size {dim_size} must be power of two run prep_desimater"
                 progressive, sizes = build_progressive_array_2d(
                     data, min_size=args.min_size
                 )
@@ -356,16 +358,20 @@ def main():
                 for i, dim_size in enumerate(data.shape):
                     assert (
                         dim_size & (dim_size - 1)
-                    ) == 0, f"Dimension {i} size {dim_size} must be power of two"
+                    ) == 0, f"Dimension {i} size {dim_size} must be power of two run prep_desimater"
                 progressive, sizes = build_progressive_array_3d(
                     data, min_size=args.min_size
                 )
             else:
                 raise ValueError(f"Unsupported dimensionality: {dims}")
-
-            best_size_or_shape = find_best_resolution(
-                progressive, sizes, data, args.error_bound
-            )
+            
+            # if level is set then best size or shape  =  sizes[level] level is user input 
+            if args.level is not None:
+                best_size_or_shape =  sizes[args.level]
+            else:
+                best_size_or_shape = find_best_resolution(
+                    progressive, sizes, data, args.error_bound
+                )
 
             if dims == 2:
                 level_data = extract_level_2d(progressive, best_size_or_shape, sizes)

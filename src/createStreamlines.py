@@ -8,6 +8,7 @@ import WrighterClass
 import re
 import math
 
+
 def rk4_streamline_from_grid(
     x0,
     y0,
@@ -23,15 +24,20 @@ def rk4_streamline_from_grid(
     zlim=None,
 ):
     is_3d = vz is not None and z0 is not None
-    
-    if is_3d:
-        zgrid = np.linspace(0, 1, vx.shape[0]) 
-        ygrid = np.linspace(0, 1, vx.shape[1]) 
-        xgrid = np.linspace(0, 1, vx.shape[2]) 
 
-        interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx)
-        interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy)
-        interp_vz = RegularGridInterpolator((zgrid, ygrid, xgrid), vz)
+    if is_3d:
+        # zgrid = np.linspace(0, 1, vx.shape[0])
+        # ygrid = np.linspace(0, 1, vx.shape[1])
+        # xgrid = np.linspace(0, 1, vx.shape[2])
+        # hard code it ofr now take in something for the 6,12,20
+
+        zgrid = np.linspace(0, 1.0, vz.shape[0])
+        ygrid = np.linspace(0, 1.0, vy.shape[1])
+        xgrid = np.linspace(0, 1.0, vx.shape[2])
+
+        interp_vx = RegularGridInterpolator((zgrid, ygrid, xgrid), vx, method="cubic")
+        interp_vy = RegularGridInterpolator((zgrid, ygrid, xgrid), vy, method="cubic")
+        interp_vz = RegularGridInterpolator((zgrid, ygrid, xgrid), vz, method="cubic")
 
         def vector_field(x, y, z):
             point = np.array([z, y, x])
@@ -47,12 +53,19 @@ def rk4_streamline_from_grid(
                 return np.array([0.0, 0.0, 0.0])
 
     else:
-        z0 = np.zeros(x0.shape[0])
-        ygrid = np.linspace(0, 1, vx.shape[0])
-        xgrid = np.linspace(0, 1, vx.shape[1])
 
-        interp_vx = RegularGridInterpolator((ygrid, xgrid), vx)
-        interp_vy = RegularGridInterpolator((ygrid, xgrid), vy)
+        z0 = np.zeros(x0.shape[0])
+        # take in something for the 1
+        # need zoom for this
+        ygrid = np.linspace(0, 1, vy.shape[0])
+        xgrid = np.linspace(0, 1, vx.shape[1])
+        print("vx shape:", vx.shape)
+        print("vy shape:", vy.shape)
+        print("xgrid:", xgrid.shape)
+        print("ygrid:", ygrid.shape)
+
+        interp_vx = RegularGridInterpolator((ygrid, xgrid), vx, method="cubic")
+        interp_vy = RegularGridInterpolator((ygrid, xgrid), vy, method="cubic")
 
         def vector_field(x, y):
             point = np.array([y, x])
@@ -66,23 +79,27 @@ def rk4_streamline_from_grid(
             except ValueError:
                 return np.array([0.0, 0.0])
 
+
     paths = []
-    coords_x = []
-    coords_y = []
-    coords_z = []
-    offsets = [0]
-    cnt  = 0 
-    
+    coords_x = []  
+    coords_y = []  
+    coords_z = []  
+    offsets = [0]  
+    cnt = 0
+
     for i in range(len(x0)):
         x = x0[i]
         y = y0[i]
-        z = z0[i] 
+        z = z0[i]
         cnt = 0
         arc_len = 0
         path = [(x, y, z)] if is_3d else [(x, y)]
-        path_x = [x]
-        path_y = [y]
-        path_z = [z] if is_3d else []
+        
+
+        coords_x.append(x)
+        coords_y.append(y)
+        if is_3d:
+            coords_z.append(z)
 
         for _ in range(max_steps):
             cnt += 1
@@ -105,7 +122,6 @@ def rk4_streamline_from_grid(
                     (x - x_prev) ** 2 + (y - y_prev) ** 2 + (z - z_prev) ** 2
                 )
             else:
-                
                 k1 = vector_field(x, y)
                 k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2)
                 k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2)
@@ -115,7 +131,6 @@ def rk4_streamline_from_grid(
                 x += dx
                 y += dy
                 arc_len += np.sqrt((x - x_prev) ** 2 + (y - y_prev) ** 2)
-      
 
             if xlim and (x < xlim[0] or x > xlim[1]):
                 break
@@ -123,39 +138,35 @@ def rk4_streamline_from_grid(
                 break
             if is_3d and zlim and (z < zlim[0] or z > zlim[1]):
                 break
-            if(cnt > 1):
-                
-                d = math.sqrt((x0[i]-x)**2 + (y0[i]-y)**2+ (z0[i] - z)**2 )
-                
-                # comment out for 
+            if cnt > 1:
+                d = math.sqrt((x0[i] - x) ** 2 + (y0[i] - y) ** 2 + (z0[i] - z) ** 2)
+                # comment out for
                 # if d < 0.0001:
                 #     print(d,x,y)
                 #     break
 
             if is_3d:
                 path.append((x, y, z))
-                path_z.append(z)
+                coords_z.append(z)
             else:
                 path.append((x, y))
 
-            path_x.append(x)
-            path_y.append(y)
+
+            coords_x.append(x)
+            coords_y.append(y)
 
             if max_len > 0 and arc_len >= max_len:
                 break
 
         paths.append(path)
-        offsets.append(len(path_x))
-        coords_x.append(path_x)
-        coords_y.append(path_y)
-        if is_3d:
-            coords_z.append(path_z)
+
+        offsets.append(len(coords_x))
 
     return (
         np.array(offsets),
-        np.array(coords_x, dtype=object),
-        np.array(coords_y, dtype=object),
-        np.array(coords_z, dtype=object) if is_3d else None,
+        np.array(coords_x),  
+        np.array(coords_y),  
+        np.array(coords_z) if is_3d else None, 
     )
 
 
@@ -296,14 +307,14 @@ def parse_arguments():
         default=4500,
         help="Number of RK steps to take (default: 4500)",
     )
-    
+
     parser.add_argument(
-       "--max_length",
-       "-MLen",
-       required=False,
-       default=4.5,
-       type=float,
-       help="The max length you want the streamlines to be (default: 4.5)" 
+        "--max_length",
+        "-MLen",
+        required=False,
+        default=4.5,
+        type=float,
+        help="The max length you want the streamlines to be (default: 4.5)",
     )
 
     return parser.parse_args()
@@ -404,10 +415,10 @@ def main():
             coords_z = np.ascontiguousarray(np.array(coords_z, dtype=np.float64))
             offsets = np.ascontiguousarray(np.array(offsets, dtype=np.int32))
 
-            coords_x = coords_x[0,:]
-            coords_y = coords_y[0,:]
-            coords_z = coords_z[0,:]
-            
+            # coords_x = coords_x[0, :]
+            # coords_y = coords_y[0, :]
+            # coords_z = coords_z[0, :]
+
             wrigher.write("coords_x", coords_x)
             wrigher.write("coords_y", coords_y)
             wrigher.write("coords_z", coords_z)

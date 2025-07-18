@@ -96,7 +96,7 @@ def calculate_spline_distance(streamline1, streamline2, num_points=2000):
 def extract_streamlines(x_coords, y_coords, z_coords, offsets):
     streamlines = []
 
-    if len(offsets) <= 1:
+    if len(offsets) <= 2:
         streamlines.append(np.column_stack((x_coords, y_coords, z_coords)))
     else:
 
