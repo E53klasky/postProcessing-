@@ -1,6 +1,8 @@
 #!/bin/bash
 
- mpirun -np 4 ../../build/bin/xcompact3d  input.i3d
+# note the errors are low because the data is comparing the compressed data with the original data
+# the error bound is also 0.001 which is also why the errors are low
+mpirun -np 4 ../../build/bin/xcompact3d  input.i3d
 
 # workflow 1
 python3 plot2D.py  -in ../../Incompact3d/examples/Cavity/data.bp5/ -v ux,uy,pp,phi01
