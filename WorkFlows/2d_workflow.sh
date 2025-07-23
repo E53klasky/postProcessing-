@@ -15,3 +15,4 @@ python3 plot2D.py  -in compressed.bp/  -v ux,uy,pp,phi01
 python3 contour.py  -f1 compressed.bp/  -v ux,uy,pp,phi01  -d1 io
 
 
+
