@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<adios-config>
+
+<io name="solution-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="in-outflow-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="turb-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="restart-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="statistics-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="restart-forces-io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="ReadIOCompressed">
+    <engine type="BP5">
+    </engine>
+</io>
+
+  <io name="WriteIOCompressed">
+    <engine type="BP5">
+    </engine>
+
+    <variable name="ux">
+      <operation type="mgard">
+        <parameter key="accuracy" value="0.001"/>
+      </operation>
+    </variable>
+
+        <variable name="uz">
+      <operation type="mgard">
+        <parameter key="accuracy" value="0.001"/>
+      </operation>
+    </variable>
+
+        <variable name="uy">
+      <operation type="mgard">
+        <parameter key="accuracy" value="0.001"/>
+      </operation>
+    </variable>
+
+    <variable name="pp">
+      <operation type="mgard">
+        <parameter key="accuracy" value="0.001"/>
+      </operation>
+    </variable>
+
+    <variable name="phi01">
+      <operation type="mgard">
+        <parameter key="accuracy" value="0.001"/>
+      </operation>
+    </variable>
+  </io>
+
+
+
+  <io name="io">
+    <engine type="SST"/>
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+  </io>
+
+  <io name="wio">
+    <engine type="SST">
+    <parameter key="Library" value="fstream"/>
+    <parameter key="ProfileUnits" value="Milliseconds"/>
+    <parameter key="DataTransport" value="WAN"/>
+    </engine>
+  </io>
+
+</adios-config>
