@@ -14,32 +14,36 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
 
     if len(x_coords) == 0 or len(y_coords) == 0:
         return []
-        offsets         
-    if len(offsets)-1 <= 1:
-        print(f"Warning: Only {len(offsets)} offset(s) found. Treating all data as one streamline.")
+        offsets
+    if len(offsets) - 1 <= 1:
+        print(
+            f"Warning: Only {len(offsets)} offset(s) found. Treating all data as one streamline."
+        )
         if len(x_coords) > 0:
             streamlines = [np.column_stack((x_coords, y_coords))]
         else:
             streamlines = []
         return streamlines
-    
+
     streamlines = []
     start_idx = 0
-    
+
     sorted_offsets = np.sort(offsets)
-    
+
     for i, end_idx in enumerate(sorted_offsets):
         if end_idx > start_idx and end_idx <= len(x_coords):
             streamline_x = x_coords[start_idx:end_idx]
             streamline_y = y_coords[start_idx:end_idx]
-            
+
             if len(streamline_x) > 0:
                 streamline = np.column_stack((streamline_x, streamline_y))
                 streamlines.append(streamline)
-                print(f"Streamline {i}: {len(streamline)} points, range x=[{np.min(streamline_x):.6f}, {np.max(streamline_x):.6f}], y=[{np.min(streamline_y):.6f}, {np.max(streamline_y):.6f}]")
-            
+                print(
+                    f"Streamline {i}: {len(streamline)} points, range x=[{np.min(streamline_x):.6f}, {np.max(streamline_x):.6f}], y=[{np.min(streamline_y):.6f}, {np.max(streamline_y):.6f}]"
+                )
+
             start_idx = end_idx
-    
+
     print(f"Extracted {len(streamlines)} streamlines")
     return streamlines
 
@@ -142,10 +146,8 @@ def RK_visualization(
 
     fig_streamlines, ax_streamlines = plt.subplots(figsize=(12, 10))
 
-
     n_streamlines = max(len(segments_compressed), len(segments_uncompressed))
     colors = plt.cm.tab10(np.linspace(0, 1, n_streamlines))
-
 
     for i, segment in enumerate(segments_compressed):
         if len(segment) > 0:
@@ -158,7 +160,6 @@ def RK_visualization(
                 alpha=0.8,
                 label=f"Low res streamline {i+1}" if i < 5 else "",
             )
-
 
     for i, segment in enumerate(segments_uncompressed):
         if len(segment) > 0:
@@ -180,7 +181,7 @@ def RK_visualization(
         else f"Streamlines Comparison - {len(segments_compressed)} streamlines"
     )
     ax_streamlines.set_title(title_str, fontsize=14)
-    if n_streamlines <= 5:  
+    if n_streamlines <= 5:
         ax_streamlines.legend(fontsize=10, loc="best")
     ax_streamlines.grid(True)
     plt.tight_layout()
@@ -195,12 +196,11 @@ def RK_visualization(
     fig_streamlines.savefig(streamlines_path, dpi=300, bbox_inches="tight")
     plt.close(fig_streamlines)
 
-
     min_streamlines = min(len(segments_compressed), len(segments_uncompressed))
     for idx in range(min_streamlines):
         comp_segment = segments_compressed[idx]
         uncomp_segment = segments_uncompressed[idx]
-        
+
         if len(comp_segment) > 1 and len(uncomp_segment) > 0:
 
             pointwise_errors = []
@@ -209,23 +209,22 @@ def RK_visualization(
                 pointwise_errors.append(np.min(dists))
             pointwise_errors = np.array(pointwise_errors)
 
-
             segments = [
                 [comp_segment[i], comp_segment[i + 1]]
                 for i in range(len(comp_segment) - 1)
             ]
-            line_colors = pointwise_errors[:-1] 
+            line_colors = pointwise_errors[:-1]
 
             fig, ax = plt.subplots(figsize=(10, 8))
-            
 
             if len(segments) > 0 and len(line_colors) > 0:
-                lc = LineCollection(segments, cmap="jet", array=line_colors, linewidths=3)
+                lc = LineCollection(
+                    segments, cmap="jet", array=line_colors, linewidths=3
+                )
                 line = ax.add_collection(lc)
-                
+
                 cbar = plt.colorbar(line, ax=ax)
                 cbar.set_label("RK step Error", fontsize=12)
-
 
             ax.plot(
                 uncomp_segment[:, 0],
@@ -236,15 +235,14 @@ def RK_visualization(
                 label="High res Reference",
             )
 
-  
             all_x = np.concatenate([comp_segment[:, 0], uncomp_segment[:, 0]])
             all_y = np.concatenate([comp_segment[:, 1], uncomp_segment[:, 1]])
             x_margin = (np.max(all_x) - np.min(all_x)) * 0.05
             y_margin = (np.max(all_y) - np.min(all_y)) * 0.05
-            
+
             ax.set_xlim(np.min(all_x) - x_margin, np.max(all_x) + x_margin)
             ax.set_ylim(np.min(all_y) - y_margin, np.max(all_y) + y_margin)
-            
+
             ax.set_xlabel("X", fontsize=12)
             ax.set_ylabel("Y", fontsize=12)
             title_str = (
@@ -364,9 +362,12 @@ def main():
         segment_uncompressed_y = r_high.read_step(args.var_y)
         segment_uncompressed_offset = r_high.read_step(args.var_offset)
 
-        print(f"Data shapes - Low res: x={len(segment_compressed_x)}, y={len(segment_compressed_y)}, offsets={segment_compressed_offset}")
-        print(f"Data shapes - High res: x={len(segment_uncompressed_x)}, y={len(segment_uncompressed_y)}, offsets={segment_uncompressed_offset}")
-
+        print(
+            f"Data shapes - Low res: x={len(segment_compressed_x)}, y={len(segment_compressed_y)}, offsets={segment_compressed_offset}"
+        )
+        print(
+            f"Data shapes - High res: x={len(segment_uncompressed_x)}, y={len(segment_uncompressed_y)}, offsets={segment_uncompressed_offset}"
+        )
 
         segment_compressed_pairs = extract_streamlines_from_segments(
             segment_compressed_x, segment_compressed_y, segment_compressed_offset
@@ -379,10 +380,11 @@ def main():
         num_streamlines = len(segment_uncompressed_pair)
         print(f"Number of streamlines: {num_streamlines}")
 
-
         spline_distances = []
-        min_streamlines = min(len(segment_compressed_pairs), len(segment_uncompressed_pair))
-        
+        min_streamlines = min(
+            len(segment_compressed_pairs), len(segment_uncompressed_pair)
+        )
+
         for i in range(min_streamlines):
             if (
                 len(segment_compressed_pairs[i]) > 1
@@ -394,7 +396,6 @@ def main():
                     uncomp_x = segment_uncompressed_pair[i][:, 0]
                     uncomp_y = segment_uncompressed_pair[i][:, 1]
 
-
                     tck0, u0 = splprep([uncomp_x, uncomp_y], s=0)
                     tck1, u1 = splprep([comp_x, comp_y], s=0)
 
@@ -403,7 +404,6 @@ def main():
                     x0_fine, y0_fine = splev(u_fine, tck0)
                     x1_fine, y1_fine = splev(u_fine, tck1)
 
- 
                     diffx = x0_fine - x1_fine
                     diffy = y0_fine - y1_fine
                     d = np.mean(np.sqrt(diffx * diffx + diffy * diffy))
@@ -416,9 +416,7 @@ def main():
                 spline_distances.append(0.0)
                 print(f"Insufficient data for spline calculation for streamline {i}")
 
-   
         distances = [0.0] * num_streamlines
-
 
         error = RK_visualization(
             segment_compressed_pairs,
