@@ -68,19 +68,30 @@ class Reader:
 
     def set_selection(self, data):
         shape = data.shape()
+        # seems good ?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>
 
-        if len(shape) == 3:
-            total_slices = shape[2]
+        if len(shape) == 3 and shape[0] == 1:
+            total_slices = shape[1]
             base = total_slices // self.numRanks
             rem = total_slices % self.numRanks
-            local_count_2 = base + 1 if self.rank < rem else base
-            local_start_2 = self.rank * base + min(self.rank, rem)
+            local_count_1 = base + 1 if self.rank < rem else base
+            local_start_1 = self.rank * base + min(self.rank, rem)
 
-            start = [0, 0, local_start_2] + [0] * (len(shape) - 3)
-            count = list(shape)
-            count[2] = local_count_2
-
+            start = [0, local_start_1, 0]
+            count = [1, local_count_1, shape[2]]
             data.set_selection((start, count))
+
+        elif len(shape) == 3:
+            total_slices = shape[0]
+            base = total_slices // self.numRanks
+            rem = total_slices % self.numRanks
+            local_count_0 = base + 1 if self.rank < rem else base
+            local_start_0 = self.rank * base + min(self.rank, rem)
+
+            start = [local_start_0, 0, 0]
+            count = [local_count_0, shape[1], shape[2]]
+            data.set_selection((start, count))
+
         elif len(shape) == 2:
             print("skip")
         else:

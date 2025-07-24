@@ -28,9 +28,9 @@ class Reader3D:
         if self.comm:
             self.numRanks = self.comm.Get_size()
             self.rank = self.comm.Get_rank()
-        
+
         self.state = False
-        
+
         self._calculate_3d_grid()
 
     def _calculate_3d_grid(self):
@@ -39,7 +39,7 @@ class Reader3D:
             self.px, self.py, self.pz = 1, 1, 1
             self.rankx, self.ranky, self.rankz = 0, 0, 0
             return
-            
+
         factors = []
         for i in range(1, int(np.sqrt(self.numRanks)) + 1):
             if self.numRanks % i == 0:
@@ -47,10 +47,10 @@ class Reader3D:
                 if i != self.numRanks // i:
                     factors.append(self.numRanks // i)
         factors.sort()
-        
-        best_diff = float('inf')
+
+        best_diff = float("inf")
         self.px, self.py, self.pz = 1, 1, self.numRanks
-        
+
         for px in factors:
             remaining = self.numRanks // px
             for py in factors:
@@ -60,14 +60,16 @@ class Reader3D:
                     if diff < best_diff:
                         best_diff = diff
                         self.px, self.py, self.pz = px, py, pz
-        
+
         self.rankz = self.rank // (self.px * self.py)
         remaining = self.rank % (self.px * self.py)
         self.ranky = remaining // self.px
         self.rankx = remaining % self.px
-        
+
         if self.rank == 0:
-            print(f"3D Grid: {self.px}x{self.py}x{self.pz}, Total ranks: {self.numRanks}")
+            print(
+                f"3D Grid: {self.px}x{self.py}x{self.pz}, Total ranks: {self.numRanks}"
+            )
 
     def begin_step(self):
         if self.state == True:
@@ -101,24 +103,24 @@ class Reader3D:
     def set_selection_3d(self, data):
         """Set 3D domain decomposition selection for reading"""
         shape = data.shape()
-        
+
         if len(shape) < 3:
             self._set_selection_fallback(data)
             return
-        
+
         if self.comm is None:
             start = [0] * len(shape)
             count = list(shape)
             data.set_selection((start, count))
             return
-        
+
         start = [0] * len(shape)
         count = list(shape)
-        
+
         if self.rank == 0:
             print(f"Original shape: {shape}")
             print(f"3D grid: {self.px}x{self.py}x{self.pz}")
-        
+
         if shape[0] >= self.px:
             base_x = shape[0] // self.px
             rem_x = shape[0] % self.px
@@ -131,7 +133,7 @@ class Reader3D:
             else:
                 count[0] = 0
                 start[0] = 0
-        
+
         if shape[1] >= self.py:
             base_y = shape[1] // self.py
             rem_y = shape[1] % self.py
@@ -144,7 +146,7 @@ class Reader3D:
             else:
                 count[1] = 0
                 start[1] = 0
-        
+
         if shape[2] >= self.pz:
             base_z = shape[2] // self.pz
             rem_z = shape[2] % self.pz
@@ -157,26 +159,26 @@ class Reader3D:
             else:
                 count[2] = 0
                 start[2] = 0
-        
+
         for i in range(3, len(shape)):
             start[i] = 0
             count[i] = shape[i]
-        
+
         if self.rank == 0:
             print(f"Rank {self.rank}: start={start}, count={count}")
-        
+
         data.set_selection((start, count))
 
     def _set_selection_fallback(self, data):
         """Fallback to last dimension decomposition for non-3D data"""
         shape = data.shape()
-        
+
         if self.comm is None:
             start = [0] * len(shape)
             count = list(shape)
             data.set_selection((start, count))
             return
-        
+
         total_elements = shape[-1]
         base = total_elements // self.numRanks
         rem = total_elements % self.numRanks
