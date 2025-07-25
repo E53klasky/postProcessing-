@@ -2,7 +2,7 @@ import adios2
 from rich.traceback import install
 from mpi4py import MPI
 
-# works for only for same size now -> subtract, rmse
+
 """
 Handles serial/parallel reading from ADIOS2 .bp files.
 Initializes an ADIOS2 IO object with an optional XML and MPI configuration and manages data reading.

@@ -11,7 +11,9 @@ from rich.traceback import install
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Compression code to compress the data")
+    parser = argparse.ArgumentParser(
+        description="Compression code to compress the data"
+    )
     parser.add_argument(
         "--input",
         "-in",
@@ -125,11 +127,13 @@ def main():
 
             if data is not None:
                 data = np.array(data, dtype=np.float64)
-                
+
                 write_start = time.time()
                 w.write(name, data)
                 if flag:
-                    w.write("error_bound", np.array([parser.error_bound], dtype=np.float64))
+                    w.write(
+                        "error_bound", np.array([parser.error_bound], dtype=np.float64)
+                    )
                     flag = False
                 write_end = time.time()
 
@@ -155,9 +159,11 @@ def main():
         times_file.write(f"\nProgram ended at {program_end:.6f}\n")
         times_file.write(f"Total program time: {program_end - program_start:.6f} s\n")
         times_file.close()
-    
+
     decomp_type = "3D domain" if use_3d else "last dimension"
-    print(f"Compression completed using {decomp_type} decomposition. Output written to {output}.")
+    print(
+        f"Compression completed using {decomp_type} decomposition. Output written to {output}."
+    )
 
 
 if __name__ == "__main__":

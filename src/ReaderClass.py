@@ -68,7 +68,6 @@ class Reader:
 
     def set_selection(self, data):
         shape = data.shape()
-        # seems good ?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>?>
 
         if len(shape) == 3 and shape[0] == 1:
             total_slices = shape[1]
