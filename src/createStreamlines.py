@@ -321,7 +321,7 @@ def parse_arguments():
         type=float,
         help="The max length you want the streamlines to be (default: 4.5)",
     )
-    
+
     parser.add_argument(
         "--num_random_seeds",
         "-nrs",
@@ -352,7 +352,9 @@ def main():
     x_seeds, y_seeds, z_seeds = None, None, None
 
     if args.seeds_points:
-        x_seeds, y_seeds, z_seeds = parse_seed_points(args.seeds_points, num_dims=3 if is_3d else 2)
+        x_seeds, y_seeds, z_seeds = parse_seed_points(
+            args.seeds_points, num_dims=3 if is_3d else 2
+        )
         check_bounds("x_seeds", x_seeds)
         check_bounds("y_seeds", y_seeds)
         if is_3d:
@@ -390,9 +392,10 @@ def main():
         else:
             print(f"Random seeds: {list(zip(x_seeds, y_seeds))}")
     else:
-        raise ValueError("You must specify either seed points with --seeds_points or a positive number of random seeds with --num_ranndom_seeds.")
+        raise ValueError(
+            "You must specify either seed points with --seeds_points or a positive number of random seeds with --num_ranndom_seeds."
+        )
 
-    
     output_file = args.output
     dt = args.step_size
     num_rk_steps = args.num_RK_steps

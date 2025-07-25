@@ -88,7 +88,6 @@ def main():
     else:
         times_file = None
 
-  
     try:
         reader = Reader3DClass.Reader3D(
             args.readIO, args.input, xml=args.xml, comm=comm
@@ -111,7 +110,6 @@ def main():
         while True:
             step_start = time.time()
 
-
             status = reader.begin_step()
 
             if status != adios2.bindings.StepStatus.OK:
@@ -127,7 +125,6 @@ def main():
                 if times_file:
                     times_file.write(f"\nStep: {current_step}\n")
 
-  
             writer.begin_step()
 
             # Get all available variables
@@ -140,9 +137,7 @@ def main():
                     for name, info in available_vars.items():
                         print(f"  {name}: {info}")
 
-
             reader.set_read_vars(vars_in_step)
-
 
             for var_name in vars_in_step:
                 var_start = time.time()
@@ -158,14 +153,11 @@ def main():
                             print(f"Warning: No data returned for variable {var_name}")
                         continue
 
-
                     if not isinstance(data, np.ndarray):
                         data = np.array(data)
 
-
                     if args.sleep > 0:
                         time.sleep(args.sleep)
-
 
                     write_start = time.time()
                     writer.write(var_name, data)
