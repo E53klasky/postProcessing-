@@ -88,7 +88,7 @@ def main():
     else:
         times_file = None
 
-    # Initialize reader and writer with 3D classes
+  
     try:
         reader = Reader3DClass.Reader3D(
             args.readIO, args.input, xml=args.xml, comm=comm
@@ -111,7 +111,7 @@ def main():
         while True:
             step_start = time.time()
 
-            # Begin reading step
+
             status = reader.begin_step()
 
             if status != adios2.bindings.StepStatus.OK:
@@ -127,7 +127,7 @@ def main():
                 if times_file:
                     times_file.write(f"\nStep: {current_step}\n")
 
-            # Begin writing step
+  
             writer.begin_step()
 
             # Get all available variables
@@ -140,15 +140,15 @@ def main():
                     for name, info in available_vars.items():
                         print(f"  {name}: {info}")
 
-            # Set variables for reading
+
             reader.set_read_vars(vars_in_step)
 
-            # Process each variable
+
             for var_name in vars_in_step:
                 var_start = time.time()
 
                 try:
-                    # Read the variable data
+
                     read_start = time.time()
                     data = reader.read_step(var_name)
                     read_end = time.time()
@@ -158,15 +158,15 @@ def main():
                             print(f"Warning: No data returned for variable {var_name}")
                         continue
 
-                    # Convert to numpy array if needed
+
                     if not isinstance(data, np.ndarray):
                         data = np.array(data)
 
-                    # Optional sleep (for testing/debugging)
+
                     if args.sleep > 0:
                         time.sleep(args.sleep)
 
-                    # Write the variable data
+
                     write_start = time.time()
                     writer.write(var_name, data)
                     write_end = time.time()
@@ -193,7 +193,6 @@ def main():
                         print(f"Error processing variable {var_name}: {e}")
                     continue
 
-            # End steps
             reader.end_step()
             writer.end_step()
 
@@ -211,7 +210,6 @@ def main():
         if rank == 0:
             print(f"Error during copying: {e}")
     finally:
-        # Clean up
         try:
             reader.close()
             writer.close()

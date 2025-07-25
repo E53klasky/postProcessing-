@@ -265,7 +265,8 @@ def parse_arguments():
         "--seeds_points",
         "-s",
         type=str,
-        required=True,
+        required=False,
+        default=None,
         help="Comma-separated list of seed points: 2D '(x1,y1),(x2,y2)' or 3D '(x1,y1,z1),(x2,y2,z2)' (REQUIRED)",
     )
 
@@ -320,6 +321,15 @@ def parse_arguments():
         type=float,
         help="The max length you want the streamlines to be (default: 4.5)",
     )
+    
+    parser.add_argument(
+        "--num_random_seeds",
+        "-nrs",
+        required=False,
+        type=int,
+        default=0,
+        help="Number of random seeds to generate (default: 0, no random seeds)",
+    )
 
     return parser.parse_args()
 
@@ -337,17 +347,52 @@ def main():
     io_name = args.readIO
     io_write_name = args.WrightIO
     var_names = [v.strip() for v in args.vars.split(",")]
-
     is_3d = len(var_names) == 3
-    x_seeds, y_seeds, z_seeds = parse_seed_points(
-        args.seeds_points, num_dims=3 if is_3d else 2
-    )
 
-    check_bounds("x_seeds", x_seeds)
-    check_bounds("y_seeds", y_seeds)
-    if is_3d:
-        check_bounds("z_seeds", z_seeds)
+    x_seeds, y_seeds, z_seeds = None, None, None
 
+    if args.seeds_points:
+        x_seeds, y_seeds, z_seeds = parse_seed_points(args.seeds_points, num_dims=3 if is_3d else 2)
+        check_bounds("x_seeds", x_seeds)
+        check_bounds("y_seeds", y_seeds)
+        if is_3d:
+            check_bounds("z_seeds", z_seeds)
+
+    elif args.num_random_seeds > 0:
+        rand_seeds = []
+        for i in range(args.num_random_seeds):
+            x = np.random.rand()
+            y = np.random.rand()
+            if is_3d:
+                z = np.random.rand()
+                rand_seeds.append((x, y, z))
+            else:
+                rand_seeds.append((x, y))
+        print(f"Generated {args.num_random_seeds} random seeds.")
+
+        if is_3d:
+            x_seeds, y_seeds, z_seeds = zip(*rand_seeds)
+            x_seeds = np.array(x_seeds)
+            y_seeds = np.array(y_seeds)
+            z_seeds = np.array(z_seeds)
+        else:
+            x_seeds, y_seeds = zip(*rand_seeds)
+            x_seeds = np.array(x_seeds)
+            y_seeds = np.array(y_seeds)
+
+        check_bounds("x_seeds", x_seeds)
+        check_bounds("y_seeds", y_seeds)
+        if is_3d:
+            check_bounds("z_seeds", z_seeds)
+
+        if is_3d:
+            print(f"Random seeds: {list(zip(x_seeds, y_seeds, z_seeds))}")
+        else:
+            print(f"Random seeds: {list(zip(x_seeds, y_seeds))}")
+    else:
+        raise ValueError("You must specify either seed points with --seeds_points or a positive number of random seeds with --num_ranndom_seeds.")
+
+    
     output_file = args.output
     dt = args.step_size
     num_rk_steps = args.num_RK_steps
