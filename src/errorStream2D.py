@@ -58,6 +58,8 @@ def calculate_streamline_statistics(errors):
             'median': 0.0,
             'mean': 0.0,
             'std': 0.0,
+            'q1': 0.0,
+            'q3': 0.0,
             'count': 0
         }
     
@@ -68,6 +70,8 @@ def calculate_streamline_statistics(errors):
         'median': np.median(errors_array),
         'mean': np.mean(errors_array),
         'std': np.std(errors_array),
+        'q1': np.percentile(errors_array, 25),
+        'q3': np.percentile(errors_array, 75),
         'count': len(errors_array)
     }
 
@@ -124,6 +128,7 @@ def plot_pointwise_errors_separate(
 
             stats_text = f"Min: {stats['min']:.2e}, Max: {stats['max']:.2e}\n"
             stats_text += f"Mean: {stats['mean']:.2e}, Median: {stats['median']:.2e}\n"
+            stats_text += f"Q1: {stats['q1']:.2e}, Q3: {stats['q3']:.2e}\n"
             stats_text += f"Std Dev: {stats['std']:.2e}, Count: {stats['count']}"
             
             ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -174,7 +179,7 @@ def save_per_timestep_statistics(streamline_statistics, step=None, spline_distan
     individual_filepath = os.path.join(output_dir, individual_filename)
     
     with open(individual_filepath, 'w', newline='') as csvfile:
-        fieldnames = ['streamline_id', 'time_step', 'min', 'max', 'median', 'mean', 'std', 'count']
+        fieldnames = ['streamline_id', 'time_step', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count']
         if spline_distances is not None:
             fieldnames.append('spline_distance')
         
@@ -227,6 +232,8 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
             print(f"  Max error: {stats['max']:.6e}")
             print(f"  Mean error: {stats['mean']:.6e}")
             print(f"  Median error: {stats['median']:.6e}")
+            print(f"  Q1 error: {stats['q1']:.6e}")
+            print(f"  Q3 error: {stats['q3']:.6e}")
             print(f"  Std Dev: {stats['std']:.6e}")
             if 'avg_spline_distance' in stats:
                 print(f"  Avg Spline Distance: {stats['avg_spline_distance']:.6e}")
@@ -237,7 +244,7 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
         comprehensive_filename = "comprehensive_streamline_statistics_all_timesteps.csv"
         comprehensive_filepath = os.path.join(output_dir, comprehensive_filename)
         
-        fieldnames = ['streamline_id', 'min', 'max', 'median', 'mean', 'std', 'count', 'total_time_steps']
+        fieldnames = ['streamline_id', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count', 'total_time_steps']
         if any('avg_spline_distance' in stats for stats in streamline_comprehensive_stats):
             fieldnames.extend(['avg_spline_distance', 'spline_distance_std'])
         
@@ -263,13 +270,17 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
             streamline_means = [s['mean'] for s in streamline_comprehensive_stats]
             streamline_medians = [s['median'] for s in streamline_comprehensive_stats]
             streamline_stds = [s['std'] for s in streamline_comprehensive_stats]
+            streamline_q1s = [s['q1'] for s in streamline_comprehensive_stats]
+            streamline_q3s = [s['q3'] for s in streamline_comprehensive_stats]
             
             overall_stats.update({
                 'min_of_streamline_mins': np.min(streamline_mins),
                 'max_of_streamline_maxs': np.max(streamline_maxs),
                 'mean_of_streamline_means': np.mean(streamline_means),
                 'median_of_streamline_medians': np.median(streamline_medians),
-                'mean_of_streamline_stds': np.mean(streamline_stds)
+                'mean_of_streamline_stds': np.mean(streamline_stds),
+                'mean_of_streamline_q1s': np.mean(streamline_q1s),
+                'mean_of_streamline_q3s': np.mean(streamline_q3s)
             })
         
         overall_filename = "overall_statistics_all_streamlines_all_timesteps.csv"
@@ -292,6 +303,8 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
         print(f"Overall Max Error: {overall_stats['max']:.6e}")
         print(f"Overall Mean Error: {overall_stats['mean']:.6e}")
         print(f"Overall Median Error: {overall_stats['median']:.6e}")
+        print(f"Overall Q1 Error: {overall_stats['q1']:.6e}")
+        print(f"Overall Q3 Error: {overall_stats['q3']:.6e}")
         print(f"Overall Std Dev: {overall_stats['std']:.6e}")
         
         if 'min_of_streamline_mins' in overall_stats:
@@ -301,6 +314,8 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
             print(f"Mean of Streamline Means: {overall_stats['mean_of_streamline_means']:.6e}")
             print(f"Median of Streamline Medians: {overall_stats['median_of_streamline_medians']:.6e}")
             print(f"Mean of Streamline Std Devs: {overall_stats['mean_of_streamline_stds']:.6e}")
+            print(f"Mean of Streamline Q1s: {overall_stats['mean_of_streamline_q1s']:.6e}")
+            print(f"Mean of Streamline Q3s: {overall_stats['mean_of_streamline_q3s']:.6e}")
         
         print("="*60 + "\n")
 
