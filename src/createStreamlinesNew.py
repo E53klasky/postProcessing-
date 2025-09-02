@@ -57,7 +57,7 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
 
 # calculate error in the rk4 steps 
 # assuming the same numer of rk4 steps as the ground truth segments
-def calc_error(streamline_point, cnt, alpha=0.005):
+def calc_error(streamline_point, cnt, alpha=0.01): # setting alpha
     global gt_segments
 
     if gt_segments is None:

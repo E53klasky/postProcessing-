@@ -50,6 +50,19 @@ def extract_streamlines_from_segments(x_coords, y_coords, offsets):
     return streamlines
 
 
+def get_seed_points(streamlines):
+    """Extract seed points (first x,y coordinate) from each streamline"""
+    seed_points = []
+    for streamline in streamlines:
+        if len(streamline) > 0:
+            seed_x = streamline[0, 0]
+            seed_y = streamline[0, 1]
+            seed_points.append((seed_x, seed_y))
+        else:
+            seed_points.append((np.nan, np.nan))
+    return seed_points
+
+
 def calculate_streamline_statistics(errors):
     if len(errors) == 0:
         return {
@@ -166,7 +179,7 @@ def plot_pointwise_errors_separate(
     return all_streamline_errors, streamline_statistics
 
 
-def save_per_timestep_statistics(streamline_statistics, step=None, spline_distances=None):
+def save_per_timestep_statistics(streamline_statistics, step=None, spline_distances=None, seed_points=None):
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
@@ -179,7 +192,7 @@ def save_per_timestep_statistics(streamline_statistics, step=None, spline_distan
     individual_filepath = os.path.join(output_dir, individual_filename)
     
     with open(individual_filepath, 'w', newline='') as csvfile:
-        fieldnames = ['streamline_id', 'time_step', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count']
+        fieldnames = ['streamline_id', 'time_step', 'seed_x', 'seed_y', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count']
         if spline_distances is not None:
             fieldnames.append('spline_distance')
         
@@ -188,6 +201,15 @@ def save_per_timestep_statistics(streamline_statistics, step=None, spline_distan
         
         for i, stats in enumerate(streamline_statistics):
             row = stats.copy()
+            
+            # Add seed point information
+            if seed_points is not None and i < len(seed_points):
+                row['seed_x'] = seed_points[i][0]
+                row['seed_y'] = seed_points[i][1]
+            else:
+                row['seed_x'] = np.nan
+                row['seed_y'] = np.nan
+                
             if spline_distances is not None and i < len(spline_distances):
                 row['spline_distance'] = spline_distances[i]
             writer.writerow(row)
@@ -195,7 +217,7 @@ def save_per_timestep_statistics(streamline_statistics, step=None, spline_distan
     print(f"Time step {step} statistics saved to: {individual_filepath}")
 
 
-def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distances):
+def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distances, accumulated_seed_points):
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
@@ -213,6 +235,15 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
             stats['streamline_id'] = streamline_id + 1
             stats['total_time_steps'] = len([e for e in errors if e > 0])  
             
+            # Add seed point information (use the first recorded seed point for each streamline)
+            if streamline_id in accumulated_seed_points and accumulated_seed_points[streamline_id]:
+                first_seed = accumulated_seed_points[streamline_id][0]  # Use first occurrence
+                stats['seed_x'] = first_seed[0]
+                stats['seed_y'] = first_seed[1]
+            else:
+                stats['seed_x'] = np.nan
+                stats['seed_y'] = np.nan
+            
             if streamline_id in accumulated_spline_distances:
                 spline_dists = accumulated_spline_distances[streamline_id]
                 if spline_dists:
@@ -227,6 +258,7 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
             
            
             print(f"Streamline {streamline_id + 1}:")
+            print(f"  Seed point: ({stats['seed_x']:.6f}, {stats['seed_y']:.6f})")
             print(f"  Total RK steps across all time steps: {stats['count']}")
             print(f"  Min error: {stats['min']:.6e}")
             print(f"  Max error: {stats['max']:.6e}")
@@ -244,7 +276,7 @@ def save_comprehensive_statistics(accumulated_errors, accumulated_spline_distanc
         comprehensive_filename = "comprehensive_streamline_statistics_all_timesteps.csv"
         comprehensive_filepath = os.path.join(output_dir, comprehensive_filename)
         
-        fieldnames = ['streamline_id', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count', 'total_time_steps']
+        fieldnames = ['streamline_id', 'seed_x', 'seed_y', 'min', 'max', 'median', 'mean', 'std', 'q1', 'q3', 'count', 'total_time_steps']
         if any('avg_spline_distance' in stats for stats in streamline_comprehensive_stats):
             fieldnames.extend(['avg_spline_distance', 'spline_distance_std'])
         
@@ -326,7 +358,8 @@ def RK_visualization(
     distances,
     step=None,
     spline_distances=None,
-    accumulated_errors=None
+    accumulated_errors=None,
+    seed_points=None
 ):
  
     all_errors, streamline_stats = plot_pointwise_errors_separate(
@@ -338,7 +371,7 @@ def RK_visualization(
     )
     
 
-    save_per_timestep_statistics(streamline_stats, step=step, spline_distances=spline_distances)
+    save_per_timestep_statistics(streamline_stats, step=step, spline_distances=spline_distances, seed_points=seed_points)
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
@@ -537,7 +570,8 @@ def main():
 
  
     accumulated_errors = defaultdict(list) 
-    accumulated_spline_distances = defaultdict(list)  
+    accumulated_spline_distances = defaultdict(list)
+    accumulated_seed_points = defaultdict(list)  # New: store seed points for each streamline
 
     while True:
         status_low = r_low.begin_step()
@@ -587,6 +621,14 @@ def main():
 
         num_streamlines = len(segment_uncompressed_pair)
         print(f"Number of streamlines: {num_streamlines}")
+
+        # Extract seed points for this time step
+        seed_points_compressed = get_seed_points(segment_compressed_pairs)
+        seed_points_uncompressed = get_seed_points(segment_uncompressed_pair)
+        
+        # Store seed points for comprehensive statistics (using compressed data as reference)
+        for i, seed_point in enumerate(seed_points_compressed):
+            accumulated_seed_points[i].append(seed_point)
 
         spline_distances = []
         min_streamlines = min(
@@ -638,13 +680,14 @@ def main():
             distances,
             step=current_step,
             spline_distances=spline_distances,
-            accumulated_errors=accumulated_errors
+            accumulated_errors=accumulated_errors,
+            seed_points=seed_points_compressed
         )
 
         r_low.end_step()
         r_high.end_step()
 
-    save_comprehensive_statistics(accumulated_errors, accumulated_spline_distances)
+    save_comprehensive_statistics(accumulated_errors, accumulated_spline_distances, accumulated_seed_points)
 
     r_low.close()
     r_high.close()
