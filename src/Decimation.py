@@ -221,7 +221,7 @@ def upscale_with_regular_grid_interpolator(data, target_shape, method="cubic"):
         z_old = np.linspace(0, 1, nz)
         y_old = np.linspace(0, 1, ny)
         x_old = np.linspace(0, 1, nx)
-        # send and recive  for parallel
+
         interpolator = RegularGridInterpolator(
             (z_old, y_old, x_old), data, method=method
         )
