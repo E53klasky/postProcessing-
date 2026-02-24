@@ -9,6 +9,8 @@ from rich.traceback import install
 RESOLUTIONS = ["129-257", "257-513", "513-1025", "1025-2049", "2049-4097"]
 COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
 
+Ly_default = 1.0
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -26,27 +28,20 @@ def parse_arguments():
         "-re",
         type=str,
         required=True,
-        help="Reynolds number string pattern (e.g. RE14084)",
+        help="Reynolds number string pattern (e.g. RE112676)",
     )
     parser.add_argument(
         "--readIO",
         "-rio",
         type=str,
         default="reader1",
+        help="ReaderClass name (default: reader1)",
     )
-    parser.add_argument(
-        "--xml",
-        "-x",
-        type=str,
-        default=None,
-    )
+    parser.add_argument("--xml", "-x", type=str, default=None, help="Optional XML file")
     return parser.parse_args()
 
 
 def find_bp_file(res_dir, re_string):
-    """
-    Automatically find bp file containing the Reynolds number.
-    """
     files = os.listdir(res_dir)
     for f in files:
         if re_string in f and f.endswith(".bp5"):
@@ -61,12 +56,10 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     all_data = {}
-
     base_path = "../my_data"
 
     for res in RESOLUTIONS:
         res_path = os.path.join(base_path, res)
-
         bp_path = find_bp_file(res_path, args.re)
 
         if bp_path is None:
@@ -74,11 +67,9 @@ def main():
             continue
 
         print(f"Reading {res} -> {bp_path}")
-
         r = ReaderClass.Reader(args.readIO, bp_path, xml=args.xml)
 
         steps = []
-
         while True:
             status = r.begin_step()
             if status != adios2.bindings.StepStatus.OK:
@@ -94,7 +85,6 @@ def main():
                     raise ValueError(f"Expected 2D data, got shape {data.shape}")
 
                 mean_profile = np.mean(data, axis=1)
-
                 steps.append(mean_profile)
             else:
                 steps.append(None)
@@ -121,13 +111,13 @@ def main():
             if profile is None:
                 continue
 
-            nz = len(profile)
-            z = np.linspace(0, 1, nz)
+            ny = len(profile)
+            y = np.linspace(0, Ly_default, ny)
 
-            ax.plot(profile, z, color=color, label=res)
+            ax.plot(profile, y, color=color, label=res)
 
         ax.set_xlabel(f"Mean {args.var}")
-        ax.set_ylabel("Vertical Index (z)")
+        ax.set_ylabel("y")
         ax.set_title(f"{args.var} | {args.re} | Step {step_idx}")
         ax.legend()
 
@@ -139,7 +129,7 @@ def main():
 
         print(f"Saved: {filename}")
 
-    print("plotMeanProfile completed successfully.")
+    print("Plotting completed successfully.")
 
 
 if __name__ == "__main__":
