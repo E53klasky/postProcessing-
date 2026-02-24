@@ -121,7 +121,7 @@ make -j$(nproc)
 echo "Setting up Python environment..."
 python3 -m venv venv
 source venv/bin/activate
-pip install numpy matplotlib mpi4py
+pip3 install -r py_requirements.txt
 
 echo "Executable: $INSTALL_DIR/Incompact3d/build/bin/xcompact3d"
 ```

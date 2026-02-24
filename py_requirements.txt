@@ -1,0 +1,6 @@
+numpy
+argparse
+rich
+scipy
+matplotlib
+mpi4py
