@@ -45,11 +45,13 @@ def main():
 
     output_dir = "../RESULTS"
     os.makedirs(output_dir, exist_ok=True)
+
     while True:
         status = r.begin_step()
 
         if status != adios2.bindings.StepStatus.OK:
             break
+
         step_count = r.current_step()
         print(f"Reading step: {int(step_count)}")
 
@@ -57,43 +59,39 @@ def main():
 
         for var in vars:
             data = r.read_step(var)
-            if data is not None:
 
-                if len(data.shape) == 3 and data.shape[0] == 1:
-                    data = data[0, :, :]
-                    plt.imshow(
-                        data,
-                        cmap="inferno",
-                        vmin=-0.131654,
-                        vmax=0.177015,
-                    )
-                    plot_filename = f"{var}_step_{step_count}.png"
-                    plt.title(f"{var} at physical step {step_count}")
-                    plt.colorbar()
-                    plt.savefig(
-                        os.path.join(output_dir, f"{var}_step_{step_count}.png")
-                    )
-                    plt.close()
-                    print(f"Plot saved as {plot_filename} to {output_dir}")
-                elif len(data.shape) == 2:
-                    plt.imshow(
-                        data,
-                        cmap="inferno",
-                        vmin=-0.131654,
-                        vmax=0.177015,
-                    )
-                    plot_filename = f"{var}_step_{step_count}.png"
-                    plt.title(f"{var} at physical step {step_count}")
-                    plt.colorbar()
-                    plt.savefig(
-                        os.path.join(output_dir, f"{var}_step_{step_count}.png")
-                    )
-                    plt.close()
-                    print(f"Plot saved as {plot_filename} to {output_dir}")
-
-            else:
+            if data is None:
                 print(f"Variable '{var}' not found in the stream.")
-        step_count += 1
+                continue
+
+            # ---- Handle dimensions ----
+            if len(data.shape) == 3:
+                if data.shape[0] == 1:
+                    data = data[0, :, :]
+                else:
+                    z_mid = data.shape[0] // 2
+                    data = data[z_mid, :, :]
+                    print(f"Using z-mid slice: {z_mid}")
+
+            elif len(data.shape) != 2:
+                print(f"Skipping unsupported shape {data.shape}")
+                continue
+
+            # ---- Plot ----
+            plt.imshow(
+                data,
+                cmap="inferno",
+            )
+
+            plt.title(f"{var} at step {step_count}")
+            plt.colorbar()
+
+            plot_filename = f"{var}_step_{step_count}.png"
+            plt.savefig(os.path.join(output_dir, plot_filename))
+            plt.close()
+
+            print(f"Plot saved as {plot_filename} to {output_dir}")
+
         r.end_step()
 
     print("Plot2D completed successfully")
