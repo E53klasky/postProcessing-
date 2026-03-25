@@ -13,7 +13,8 @@ Makefile
 exported_model/
 .vscode/
 *.f32
-
+*.bp
+*.bp5
 models/compress_models/
 pretrained_models/
 pretrained
