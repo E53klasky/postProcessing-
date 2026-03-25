@@ -110,6 +110,9 @@ def main():
                         data_high_2d[gt_i, gt_j] - data_low_2d[i, j]
                     )
 
+
+            max_idx = np.unravel_index(np.argmax(np.abs(truncation_error)), truncation_error.shape)
+            print(f"  Max error location: row={max_idx[0]}, col={max_idx[1]} (out of {ny_low}x{nx_low})")
             if args.tolerance is not None:
                 truncation_error[np.abs(truncation_error) <= args.tolerance] = 0.0
 
