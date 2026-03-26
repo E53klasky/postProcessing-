@@ -145,30 +145,20 @@ def main():
 
         for idx, var in enumerate(vars_list):
 
-            # ------------------------------------------------------------------
-            # READ FIELDS
-            # Each field lives on its own native grid. No resampling needed —
-            # all grids span [0,1]x[0,1] so contours overlay correctly.
-            # ------------------------------------------------------------------
-
-            # Low-res (required)
             arr = get_2d_data(r.read_step(var))
             if arr is None:
                 continue
 
-            # Hi-res / GT (optional)
             arr_hi = None
             if r_hi and status_hi == bindings.StepStatus.OK:
                 var_hi = vars_hires_list[idx] if idx < len(vars_hires_list) else var
                 arr_hi = get_2d_data(r_hi.read_step(var_hi))
 
-            # Second field (optional)
             arr2 = None
             if r2 and status2 == bindings.StepStatus.OK:
                 var2 = vars2_list[idx] if idx < len(vars2_list) else var
                 arr2 = get_2d_data(r2.read_step(var2))
 
-            # Compressed field (optional)
             arr_compressed = None
             if r_compressed and status_compressed == bindings.StepStatus.OK:
                 var_c = (
@@ -178,7 +168,6 @@ def main():
                 )
                 arr_compressed = get_2d_data(r_compressed.read_step(var_c))
 
-            # Truncation error field (optional, same grid as low-res)
             err_field = None
             if r_err and status_err == bindings.StepStatus.OK:
                 error_var = (
@@ -187,20 +176,12 @@ def main():
                 r_err.set_read_vars([error_var])
                 err_field = get_2d_data(r_err.read_step(error_var))
 
-            # ------------------------------------------------------------------
-            # FIGURE
-            # ------------------------------------------------------------------
             fig, ax = plt.subplots(figsize=(8, 6))
             fig.patch.set_facecolor("white")
             ax.set_facecolor("white")
 
             legend_handles = []
 
-            # ------------------------------------------------------------------
-            # MONTE CARLO SPAGHETTI
-            # One scalar per sample broadcast over err_field grid:
-            #   perturbed[i,j] = arr[i,j] + scale * err_field[i,j]
-            # ------------------------------------------------------------------
             if err_field is not None and num_ensemble > 1:
                 print(f"  MC {num_ensemble} samples — {var} step {int(step)}")
                 X_lo, Y_lo = make_mesh(arr)
@@ -230,9 +211,6 @@ def main():
                     )
                 )
 
-            # ------------------------------------------------------------------
-            # LOW-RES CONTOUR — bold blue
-            # ------------------------------------------------------------------
             try:
                 X_lo, Y_lo = make_mesh(arr)
                 ax.contour(
@@ -250,9 +228,6 @@ def main():
             except Exception as e:
                 print(f"  WARNING low-res contour failed: {e}")
 
-            # ------------------------------------------------------------------
-            # HI-RES CONTOUR — bold red dashed, its own native meshgrid
-            # ------------------------------------------------------------------
             if arr_hi is not None:
                 try:
                     X_hi, Y_hi = make_mesh(arr_hi)
@@ -283,9 +258,6 @@ def main():
             else:
                 print(f"  WARNING arr_hi is None — hi-res not read or shape mismatch")
 
-            # ------------------------------------------------------------------
-            # SECOND FIELD CONTOUR — dashed green, its own native meshgrid
-            # ------------------------------------------------------------------
             if arr2 is not None:
                 try:
                     X2, Y2 = make_mesh(arr2)
@@ -312,9 +284,6 @@ def main():
                 except Exception:
                     pass
 
-            # ------------------------------------------------------------------
-            # COMPRESSED CONTOUR — purple dashed, its own native meshgrid
-            # ------------------------------------------------------------------
             if arr_compressed is not None:
                 try:
                     X_c, Y_c = make_mesh(arr_compressed)
@@ -345,9 +314,6 @@ def main():
                 except Exception as e:
                     print(f"  WARNING compressed contour failed: {e}")
 
-            # ------------------------------------------------------------------
-            # AXES + LABELS
-            # ------------------------------------------------------------------
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
             ax.set_xlabel("x", fontsize=12)
@@ -367,9 +333,6 @@ def main():
             if legend_handles:
                 ax.legend(handles=legend_handles, loc="upper right", framealpha=0.8)
 
-            # ------------------------------------------------------------------
-            # SAVE
-            # ------------------------------------------------------------------
             mc_suffix = f"_ne{num_ensemble}" if err_field is not None else ""
             hi_suffix = "_hires" if arr_hi is not None else ""
             f2_suffix = "_f2" if arr2 is not None else ""
