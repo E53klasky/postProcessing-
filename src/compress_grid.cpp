@@ -8,6 +8,7 @@
 #include <cmath>
 #include <numeric>
 
+
 void print_usage(int rank)
 {
     if (rank == 0)
@@ -17,16 +18,18 @@ void print_usage(int rank)
             "  compress_grid <2d|3d> <var1,var2,...> <input.bp> <output.bp>\n"
             "                --error-files <err1.bp> <err2.bp> ...\n"
             "                --block-mode  <min|max>\n"
+            "                --scale       <float>\n"
             "\n"
             "  Number of --error-files must match number of variables.\n"
             "  Error variable inside each file is assumed to be {varname}_truncation_error.\n"
             "  --block-mode: for each rank's local block, take abs min or abs max of the\n"
             "                truncation error field and use that as the MGARD tolerance.\n"
+            "  --scale:      multiply the block tolerance by this factor (default 1.0).\n"
             "\n"
             "Example:\n"
             "  mpirun -n 4 compress_grid 2d pp,ux,uy input.bp compressed.bp \\\n"
             "         --error-files pp_diff.bp ux_diff.bp uy_diff.bp \\\n"
-            "         --block-mode max\n";
+            "         --block-mode max --scale 0.5 \n";
     }
 }
 
@@ -42,7 +45,8 @@ std::vector<std::string> split_csv(const std::string &s)
 struct Options
 {
     std::vector<std::string> error_files;
-    std::string block_mode = "max";   // "min" | "max"  (alpha extension: "min*alpha" etc.)
+    std::string block_mode = "max";
+    double scale = 1.0;
 };
 
 Options parse_flags(int argc, char **argv, int rank)
@@ -54,7 +58,6 @@ Options parse_flags(int argc, char **argv, int rank)
         if (arg == "--error-files")
         {
             ++i;
-            // Consume all following tokens that are not flags (don't start with '-')
             while (i < argc && argv[i][0] != '-')
             {
                 opts.error_files.emplace_back(argv[i]);
@@ -76,13 +79,19 @@ Options parse_flags(int argc, char **argv, int rank)
                 }
             }
         }
-        // Skip positional args (indices 1-4) and anything else silently
+        else if (arg == "--scale")
+        {
+            if (i + 1 < argc)
+                opts.scale = std::stod(argv[++i]);
+        }
     }
     return opts;
 }
 
-// Compute abs-min or abs-max of a data vector
-double block_tolerance(const std::vector<double> &data, const std::string &mode)
+
+double block_tolerance(const std::vector<double> &data,
+                       const std::string &mode,
+                       double scale = 1.0)
 {
     double result = 0.0;
     if (mode == "max")
@@ -90,7 +99,7 @@ double block_tolerance(const std::vector<double> &data, const std::string &mode)
         for (double v : data)
             result = std::max(result, std::abs(v));
     }
-    else // min — skip exact zeros to avoid a tolerance of 0
+    else // min
     {
         result = std::numeric_limits<double>::max();
         for (double v : data)
@@ -100,12 +109,100 @@ double block_tolerance(const std::vector<double> &data, const std::string &mode)
         }
         if (result == std::numeric_limits<double>::max()) result = 0.0;
     }
+    result *= scale;
+
+  
+    constexpr double TOL_FLOOR = 1e-6;
+   
+    if (result < TOL_FLOOR) result = TOL_FLOOR;
+ 
+
     return result;
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
+
+double compute_tolerance_from_error_file(
+    adios2::IO        &err_io,
+    adios2::Engine    &err_reader,
+    const std::string &err_vname,
+    const std::vector<size_t> &squeezed_start,   // this rank's start in each spatial dim
+    const std::vector<size_t> &squeezed_count,   // this rank's count in each spatial dim
+    const std::string &mode,
+    double             scale,
+    int                rank)
+{
+    adios2::Variable<double> err_var = err_io.InquireVariable<double>(err_vname);
+    if (!err_var)
+    {
+        if (rank == 0)
+            std::cerr << "**** Warning: '" << err_vname
+                      << "' not found in error file — using fallback 0.001. ****\n";
+        return 0.001;
+    }
+
+    const auto   err_shape = err_var.Shape();
+    const size_t err_ndims = err_shape.size();
+
+    std::vector<size_t> full_start(err_ndims, 0);
+    std::vector<size_t> full_count = err_shape;   
+
+    size_t err_total = 1;
+    for (auto c : full_count) err_total *= c;
+
+    err_var.SetSelection({full_start, full_count});
+    std::vector<double> err_full(err_total);
+    err_reader.Get(err_var, err_full.data(), adios2::Mode::Sync);
+
+    std::vector<size_t> err_spatial_dims; 
+    std::vector<size_t> err_spatial_size;  
+    for (size_t d = 0; d < err_ndims; ++d)
+        if (err_shape[d] != 1)
+        {
+            err_spatial_dims.push_back(d);
+            err_spatial_size.push_back(err_shape[d]);
+        }
+
+    const size_t nspatial = err_spatial_dims.size();
+
+    if (squeezed_start.size() < nspatial)
+    {
+        if (rank == 0)
+            std::cerr << "Warning: dim mismatch between error file and main variable"
+                      << " — using fallback 0.001.\n";
+        return 0.001;
+    }
+
+    std::vector<size_t> strides(nspatial, 1);
+    for (int d = (int)nspatial - 2; d >= 0; --d)
+        strides[d] = strides[d + 1] * err_spatial_size[d + 1];
+
+    std::vector<double> err_block;
+    err_block.reserve(1);  
+
+    size_t block_total = 1;
+    for (size_t d = 0; d < nspatial; ++d) block_total *= squeezed_count[d];
+    err_block.resize(block_total);
+
+    for (size_t flat = 0; flat < block_total; ++flat)
+    {
+        size_t tmp = flat;
+        size_t full_flat = 0;
+        for (int d = (int)nspatial - 1; d >= 0; --d)
+        {
+            size_t local_coord = tmp % squeezed_count[d];
+            tmp /= squeezed_count[d];
+            size_t global_coord = squeezed_start[d] + local_coord;
+            full_flat += global_coord * strides[d];
+        }
+        err_block[flat] = err_full[full_flat];
+    }
+
+    double tol = block_tolerance(err_block, mode, scale);
+    if (tol == 0.0) tol = 1e-15;
+    return tol;
+}
+
+
 int main(int argc, char **argv)
 {
     MPI_Init(&argc, &argv);
@@ -114,7 +211,6 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Positional args: <2d|3d> <vars> <input.bp> <output.bp>
     const int N_POS = 4;
     if (argc < N_POS + 1)
     {
@@ -130,7 +226,6 @@ int main(int argc, char **argv)
 
     Options opts = parse_flags(argc, argv, rank);
 
-    // Validate error files count
     if (!opts.error_files.empty() && opts.error_files.size() != vars.size())
     {
         if (rank == 0)
@@ -150,6 +245,7 @@ int main(int argc, char **argv)
         std::cout << "\nInput       : " << input_file
                   << "\nOutput      : " << output_file
                   << "\nBlock-mode  : " << opts.block_mode
+                  << "\nScale       : " << opts.scale
                   << "\nError files : ";
         if (use_error_files)
             for (auto &f : opts.error_files) std::cout << f << " ";
@@ -158,9 +254,6 @@ int main(int argc, char **argv)
         std::cout << "\n\n";
     }
 
-    // -------------------------------------------------------------------
-    // MPI Cartesian topology
-    // -------------------------------------------------------------------
     std::vector<int> mpi_dims(ndims, 0);
     MPI_Dims_create(size, ndims, mpi_dims.data());
     std::vector<int> periods(ndims, 0);
@@ -170,9 +263,6 @@ int main(int argc, char **argv)
     std::vector<int> coords(ndims, 0);
     MPI_Cart_coords(cart_comm, rank, ndims, coords.data());
 
-    // -------------------------------------------------------------------
-    // ADIOS2 setup — main data
-    // -------------------------------------------------------------------
     adios2::ADIOS adios(cart_comm);
 
     adios2::IO reader_io = adios.DeclareIO("ReaderIO");
@@ -182,9 +272,8 @@ int main(int argc, char **argv)
     adios2::Operator mgardOp = adios.DefineOperator("MGARDCompressor", "mgard");
     adios2::Engine writer = writer_io.Open(output_file, adios2::Mode::Write);
 
-    // -------------------------------------------------------------------
-    // ADIOS2 setup — one reader per error file
-    // -------------------------------------------------------------------
+    adios2::ADIOS adios_serial(MPI_COMM_SELF);
+
     std::vector<adios2::IO>     err_ios;
     std::vector<adios2::Engine> err_readers;
 
@@ -193,7 +282,7 @@ int main(int argc, char **argv)
         for (size_t vi = 0; vi < vars.size(); ++vi)
         {
             std::string io_name = "ErrorReaderIO_" + std::to_string(vi);
-            adios2::IO eio = adios.DeclareIO(io_name);
+            adios2::IO eio = adios_serial.DeclareIO(io_name);
             adios2::Engine erd = eio.Open(opts.error_files[vi], adios2::Mode::Read);
             err_ios.push_back(std::move(eio));
             err_readers.push_back(std::move(erd));
@@ -206,7 +295,6 @@ int main(int argc, char **argv)
     {
         if (reader.BeginStep() != adios2::StepStatus::OK) break;
 
-        // Advance all error readers in lockstep
         if (use_error_files)
         {
             for (auto &erd : err_readers)
@@ -215,7 +303,7 @@ int main(int argc, char **argv)
                 {
                     if (rank == 0)
                         std::cerr << "Error: error file ran out of steps before main file.\n";
-                    goto done;   // break out of outer while
+                    goto done;
                 }
             }
         }
@@ -233,7 +321,6 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            // Raw shape from file (may contain leading/trailing size-1 dims)
             const auto raw_shape   = var.Shape();
             const size_t ndims_var = raw_shape.size();
 
@@ -287,63 +374,15 @@ int main(int argc, char **argv)
             if (use_error_files)
             {
                 const std::string err_vname = vname + "_truncation_error";
-                adios2::Variable<double> err_var =
-                    err_ios[vi].InquireVariable<double>(err_vname);
-
-                if (!err_var)
-                {
-                    if (rank == 0)
-                        std::cerr << "Warning: '" << err_vname
-                                  << "' not found in error file — using fallback 0.001.\n";
-                }
-                else
-                {
-                    const auto err_shape    = err_var.Shape();
-                    const size_t err_ndims  = err_shape.size();
-
-                    std::vector<size_t> err_spatial;
-                    for (size_t d = 0; d < err_ndims; ++d)
-                        if (err_shape[d] != 1) err_spatial.push_back(d);
-
-                    std::vector<size_t> err_start(err_ndims, 0);
-                    std::vector<size_t> err_count(err_ndims, 0);
-                    for (size_t d = 0; d < err_ndims; ++d)
-                    {
-                        if (err_shape[d] == 1)
-                        {
-                            err_start[d] = 0;
-                            err_count[d] = 1;
-                        }
-                        else
-                        {
-                            size_t sidx = 0;
-                            for (size_t dd = 0; dd < d; ++dd)
-                                if (err_shape[dd] != 1) ++sidx;
-
-                            if (sidx < squeezed_start.size())
-                            {
-                                err_start[d] = squeezed_start[sidx];
-                                err_count[d] = squeezed_count[sidx];
-                            }
-                            else
-                            {
-                                err_start[d] = 0;
-                                err_count[d] = err_shape[d];
-                            }
-                        }
-                    }
-
-                    size_t err_total = 1;
-                    for (auto c : err_count) err_total *= c;
-
-                    err_var.SetSelection({err_start, err_count});
-                    std::vector<double> err_data(err_total);
-                    err_readers[vi].Get(err_var, err_data.data(), adios2::Mode::Sync);
-
-                    tolerance = block_tolerance(err_data, opts.block_mode);
-
-                    if (tolerance == 0.0) tolerance = 1e-15;
-                }
+                tolerance = compute_tolerance_from_error_file(
+                    err_ios[vi],
+                    err_readers[vi],
+                    err_vname,
+                    squeezed_start,
+                    squeezed_count,
+                    opts.block_mode,
+                    opts.scale,
+                    rank);
             }
 
             adios2::Variable<double> wvar;

@@ -207,26 +207,9 @@ def main():
                         color="gold",
                         lw=1.5,
                         alpha=0.8,
-                        label=f"MC ensemble (N={num_ensemble})",
+                        label=f"MC (N={num_ensemble})",
                     )
                 )
-
-            try:
-                X_lo, Y_lo = make_mesh(arr)
-                ax.contour(
-                    X_lo, Y_lo, arr, levels=[level], colors="blue", linewidths=2.5
-                )
-                legend_handles.append(
-                    Line2D(
-                        [0],
-                        [0],
-                        color="blue",
-                        lw=2.5,
-                        label=f"{var} (low-res  {arr.shape[1]}x{arr.shape[0]})",
-                    )
-                )
-            except Exception as e:
-                print(f"  WARNING low-res contour failed: {e}")
 
             if arr_hi is not None:
                 try:
@@ -250,7 +233,7 @@ def main():
                             color="red",
                             lw=2.5,
                             ls="--",
-                            label=f"{var_hi_label} (hi-res  {arr_hi.shape[1]}x{arr_hi.shape[0]})",
+                            label=f"ground-truth",
                         )
                     )
                 except Exception as e:
@@ -308,7 +291,7 @@ def main():
                             color="purple",
                             lw=2.0,
                             ls="--",
-                            label=f"{var_c_label} (compressed  {arr_compressed.shape[1]}x{arr_compressed.shape[0]})",
+                            label=f"{var_c_label} (compressed)",
                         )
                     )
                 except Exception as e:
@@ -328,7 +311,6 @@ def main():
                 parts.append("+compressed")
             if err_field is not None:
                 parts.append(f"N={num_ensemble} MC")
-            ax.set_title("  |  ".join(parts), fontsize=12)
 
             if legend_handles:
                 ax.legend(handles=legend_handles, loc="upper right", framealpha=0.8)

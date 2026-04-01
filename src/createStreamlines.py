@@ -8,6 +8,7 @@ import WrighterClass
 import re
 import math
 
+
 def rk4_streamline_from_grid(
     x0,
     y0,
@@ -138,19 +139,39 @@ def rk4_streamline_from_grid(
                         point_2d = np.array([y, x])
                         ex = float(interp_ex(point_2d).item())
                         ey = float(interp_ey(point_2d).item())
-                        ez = float(interp_ez(point_2d).item()) if interp_ez is not None else 0.0
+                        ez = (
+                            float(interp_ez(point_2d).item())
+                            if interp_ez is not None
+                            else 0.0
+                        )
                         pu = scale * ex
                         pv = scale * ey
                         pw = scale * ez
                     else:
                         pu, pv, pw = 0.0, 0.0, 0.0
 
-                    k1 = vector_field(x,               y,               z,               pu, pv, pw)
-                    k2 = vector_field(x + dt*k1[0]/2,  y + dt*k1[1]/2,  z + dt*k1[2]/2,  pu, pv, pw)
-                    k3 = vector_field(x + dt*k2[0]/2,  y + dt*k2[1]/2,  z + dt*k2[2]/2,  pu, pv, pw)
-                    k4 = vector_field(x + dt*k3[0],    y + dt*k3[1],    z + dt*k3[2],    pu, pv, pw)
+                    k1 = vector_field(x, y, z, pu, pv, pw)
+                    k2 = vector_field(
+                        x + dt * k1[0] / 2,
+                        y + dt * k1[1] / 2,
+                        z + dt * k1[2] / 2,
+                        pu,
+                        pv,
+                        pw,
+                    )
+                    k3 = vector_field(
+                        x + dt * k2[0] / 2,
+                        y + dt * k2[1] / 2,
+                        z + dt * k2[2] / 2,
+                        pu,
+                        pv,
+                        pw,
+                    )
+                    k4 = vector_field(
+                        x + dt * k3[0], y + dt * k3[1], z + dt * k3[2], pu, pv, pw
+                    )
 
-                    dx, dy, dz = dt / 6 * (k1 + 2*k2 + 2*k3 + k4)
+                    dx, dy, dz = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
                     x_prev, y_prev, z_prev = x, y, z
                     x += dx
                     y += dy
@@ -169,12 +190,12 @@ def rk4_streamline_from_grid(
                     else:
                         pu, pv = 0.0, 0.0
 
-                    k1 = vector_field(x,               y,               pu, pv)
-                    k2 = vector_field(x + dt*k1[0]/2,  y + dt*k1[1]/2,  pu, pv)
-                    k3 = vector_field(x + dt*k2[0]/2,  y + dt*k2[1]/2,  pu, pv)
-                    k4 = vector_field(x + dt*k3[0],    y + dt*k3[1],    pu, pv)
+                    k1 = vector_field(x, y, pu, pv)
+                    k2 = vector_field(x + dt * k1[0] / 2, y + dt * k1[1] / 2, pu, pv)
+                    k3 = vector_field(x + dt * k2[0] / 2, y + dt * k2[1] / 2, pu, pv)
+                    k4 = vector_field(x + dt * k3[0], y + dt * k3[1], pu, pv)
 
-                    dx, dy = dt / 6 * (k1 + 2*k2 + 2*k3 + k4)
+                    dx, dy = dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
                     x_prev, y_prev = x, y
                     x += dx
                     y += dy
@@ -203,6 +224,7 @@ def rk4_streamline_from_grid(
         np.array(coords_y),
         np.array(coords_z) if is_3d else None,
     )
+
 
 def rk4_2D(
     x0, y0, vx, vy, vx_trunc, vy_trunc, num_ensemble, max_len, dt, max_steps, xlim, ylim
