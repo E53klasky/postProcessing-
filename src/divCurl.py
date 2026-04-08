@@ -117,37 +117,33 @@ def compute_gradient_with_ghosts(data, comm, grad_axis, edge_order=1):
 
 
 def curl_2d_with_ghosts(vx, vy, comm):
-    grad_vy_x = compute_gradient_with_ghosts(vy, comm, grad_axis=0, edge_order=1)
-    grad_vx_y = compute_gradient_with_ghosts(vx, comm, grad_axis=1, edge_order=1)
+    grad_vy_x = compute_gradient_with_ghosts(vy, comm, grad_axis=1, edge_order=1)
+    grad_vx_y = compute_gradient_with_ghosts(vx, comm, grad_axis=0, edge_order=1)
     return grad_vy_x - grad_vx_y
 
-
 def curl_3d_with_ghosts(vx, vy, vz, comm):
-    curl_x = compute_gradient_with_ghosts(
-        vz, comm, grad_axis=1, edge_order=1
-    ) - compute_gradient_with_ghosts(vy, comm, grad_axis=2, edge_order=1)
-
-    curl_y = compute_gradient_with_ghosts(
-        vx, comm, grad_axis=2, edge_order=1
-    ) - compute_gradient_with_ghosts(vz, comm, grad_axis=0, edge_order=1)
-
-    curl_z = compute_gradient_with_ghosts(
-        vy, comm, grad_axis=0, edge_order=1
-    ) - compute_gradient_with_ghosts(vx, comm, grad_axis=1, edge_order=1)
-
+    curl_x = compute_gradient_with_ghosts(vz, comm, grad_axis=1, edge_order=1) - \
+             compute_gradient_with_ghosts(vy, comm, grad_axis=0, edge_order=1)  
+    
+    curl_y = compute_gradient_with_ghosts(vx, comm, grad_axis=0, edge_order=1) - \
+             compute_gradient_with_ghosts(vz, comm, grad_axis=2, edge_order=1) 
+    
+    curl_z = compute_gradient_with_ghosts(vy, comm, grad_axis=2, edge_order=1) - \
+             compute_gradient_with_ghosts(vx, comm, grad_axis=1, edge_order=1) 
+    
     return curl_x, curl_y, curl_z
 
 
 def divergence_with_ghosts(vx, vy, vz, comm):
 
     if vz is None:
-        div_x = compute_gradient_with_ghosts(vx, comm, grad_axis=0, edge_order=1)
-        div_y = compute_gradient_with_ghosts(vy, comm, grad_axis=1, edge_order=1)
+        div_x = compute_gradient_with_ghosts(vx, comm, grad_axis=1, edge_order=1)
+        div_y = compute_gradient_with_ghosts(vy, comm, grad_axis=0, edge_order=1)
         return div_x + div_y
     else:
-        div_x = compute_gradient_with_ghosts(vx, comm, grad_axis=0, edge_order=1)
+        div_x = compute_gradient_with_ghosts(vx, comm, grad_axis=2, edge_order=1)
         div_y = compute_gradient_with_ghosts(vy, comm, grad_axis=1, edge_order=1)
-        div_z = compute_gradient_with_ghosts(vz, comm, grad_axis=2, edge_order=1)
+        div_z = compute_gradient_with_ghosts(vz, comm, grad_axis=0, edge_order=1)
         return div_x + div_y + div_z
 
 
